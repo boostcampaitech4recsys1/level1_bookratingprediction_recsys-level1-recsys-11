@@ -122,7 +122,7 @@ def main():
                     file = books[['isbn', 'book_title', f'book_author{l+1}', f'year_of_publication{i+1}',
                      f'publisher{j+1}', 'img_url', 'language1', f'category{k+1}', 'summary1', 'img_path']]
                     file.columns = [['isbn', 'book_title', 'book_author', 'year_of_publication',
-                     'publisher', 'img_url', 'language1', 'category', 'summary1', 'img_path']]
+                     'publisher', 'img_url', 'language', 'category', 'summary', 'img_path']]
                     file.to_csv(f'../../data/books/b{num}_y{i+1}_p{j+1}_c{k+1}_a{l+1}.csv', index=False)
                     num += 1
 
