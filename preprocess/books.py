@@ -55,7 +55,7 @@ def main():
     categories2 = ['garden','crafts','physics','adventure','music','fiction','nonfiction','science','science fiction','social','homicide',
 'sociology','disease','religion','christian','philosophy','psycholog','mathemat','agricult','environmental',
 'business','poetry','drama','literary','travel','motion picture','children','cook','literature','electronic',
-'humor','animal','bird','photograph','computer','house','ecology','family','architect','camp','criminal','language','india']
+'humor','animal','bird','photograph','computer','house','ecology','family','architect','camp','criminal','language','india', 'sports', 'horror', 'health']
 
     for category in categories2:
         books.loc[books[books['category2'].str.contains(category,na=False)].index,'category_high2'] = category
