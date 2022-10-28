@@ -1,9 +1,9 @@
-
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
 import os
+import pickle
 
 def age1(users: pd.DataFrame, ratings, test_ratings):
     no_age_users = users[users['age'].isna()]['user_id'].unique()
@@ -36,7 +36,6 @@ def age1(users: pd.DataFrame, ratings, test_ratings):
             return np.nan
         return np.round(np.median(expected_ages))
 
-    import pickle
     isbn_age = {}
     try:
         f = open('isbn_age.pkl', 'rb')
