@@ -14,6 +14,8 @@ from src import NeuralCollaborativeFiltering, WideAndDeepModel, DeepCrossNetwork
 from src import CNN_FM
 from src import DeepCoNN
 
+from sklearn.model_selection import StratifiedKFold
+
 
 def main(args):
     seed_everything(args.SEED)
@@ -33,67 +35,196 @@ def main(args):
     else:
         pass
 
-    ######################## Train/Valid Split
-    print(f'--------------- {args.MODEL} Train/Valid Split ---------------')
-    if args.MODEL in ('FM', 'FFM'):
-        data = context_data_split(args, data)
-        data = context_data_loader(args, data)
+    if args.VALID == 'random':
+        ######################## Train/Valid Split
+        print(f'--------------- {args.MODEL} Train/Valid Split ---------------')
+        if args.MODEL in ('FM', 'FFM'):
+            data = context_data_split(args, data)
+            data = context_data_loader(args, data)
 
-    elif args.MODEL in ('NCF', 'WDN', 'DCN'):
-        data = dl_data_split(args, data)
-        data = dl_data_loader(args, data)
+        elif args.MODEL in ('NCF', 'WDN', 'DCN'):
+            data = dl_data_split(args, data)
+            data = dl_data_loader(args, data)
 
-    elif args.MODEL=='CNN_FM':
-        data = image_data_split(args, data)
-        data = image_data_loader(args, data)
+        elif args.MODEL=='CNN_FM':
+            data = image_data_split(args, data)
+            data = image_data_loader(args, data)
 
-    elif args.MODEL=='DeepCoNN':
-        data = text_data_split(args, data)
-        data = text_data_loader(args, data)
-    else:
-        pass
+        elif args.MODEL=='DeepCoNN':
+            data = text_data_split(args, data)
+            data = text_data_loader(args, data)
+        else:
+            pass
 
-    ######################## Model
-    print(f'--------------- INIT {args.MODEL} ---------------')
-    if args.MODEL=='FM':
-        model = FactorizationMachineModel(args, data)
-    elif args.MODEL=='FFM':
-        model = FieldAwareFactorizationMachineModel(args, data)
-    elif args.MODEL=='NCF':
-        model = NeuralCollaborativeFiltering(args, data)
-    elif args.MODEL=='WDN':
-        model = WideAndDeepModel(args, data)
-    elif args.MODEL=='DCN':
-        model = DeepCrossNetworkModel(args, data)
-    elif args.MODEL=='CNN_FM':
-        model = CNN_FM(args, data)
-    elif args.MODEL=='DeepCoNN':
-        model = DeepCoNN(args, data)
-    else:
-        pass
+        ######################## Model
+        print(f'--------------- INIT {args.MODEL} ---------------')
+        if args.MODEL=='FM':
+            model = FactorizationMachineModel(args, data)
+        elif args.MODEL=='FFM':
+            model = FieldAwareFactorizationMachineModel(args, data)
+        elif args.MODEL=='NCF':
+            model = NeuralCollaborativeFiltering(args, data)
+        elif args.MODEL=='WDN':
+            model = WideAndDeepModel(args, data)
+        elif args.MODEL=='DCN':
+            model = DeepCrossNetworkModel(args, data)
+        elif args.MODEL=='CNN_FM':
+            model = CNN_FM(args, data)
+        elif args.MODEL=='DeepCoNN':
+            model = DeepCoNN(args, data)
+        else:
+            pass
 
-    ######################## TRAIN
-    print(f'--------------- {args.MODEL} TRAINING ---------------')
-    model.train()
+        ######################## TRAIN
+        print(f'--------------- {args.MODEL} TRAINING ---------------')
+        model.train()
 
-    ######################## INFERENCE
-    print(f'--------------- {args.MODEL} PREDICT ---------------')
-    if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN'):
-        predicts = model.predict(data['test_dataloader'])
-    elif args.MODEL=='CNN_FM':
-        predicts  = model.predict(data['test_dataloader'])
-    elif args.MODEL=='DeepCoNN':
-        predicts  = model.predict(data['test_dataloader'])
-    else:
-        pass
+        ######################## INFERENCE
+        print(f'--------------- {args.MODEL} PREDICT ---------------')
+        if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN'):
+            predicts = model.predict(data['test_dataloader'])
+        elif args.MODEL=='CNN_FM':
+            predicts  = model.predict(data['test_dataloader'])
+        elif args.MODEL=='DeepCoNN':
+            predicts  = model.predict(data['test_dataloader'])
+        else:
+            pass
 
-    ######################## SAVE PREDICT
-    print(f'--------------- SAVE {args.MODEL} PREDICT ---------------')
-    submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
-    if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
-        submission['rating'] = predicts
-    else:
-        pass
+        ######################## SAVE PREDICT
+        print(f'--------------- SAVE {args.MODEL} PREDICT ---------------')
+        submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+        if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+            submission['rating'] = predicts
+        else:
+            pass
+
+    elif args.VALID == 'kfold':
+        skf = StratifiedKFold(n_splits = args.N_SPLITS, shuffle = True)
+        length = len(data['test'])
+        kfold_predicts = np.zeros((args.N_SPLITS, length))
+
+        if args.MODEL in ('FM', 'FFM'):
+            for idx, train_index, valid_index in enumerate(skf.split(
+                                                data['train'].drop(['rating'], axis = 1),
+                                                data['train']['rating']
+                                                )):
+                
+                data['X_train']= data['train'].drop(['rating'], axis = 1).iloc[train_index]
+                data['y_train'] = data['train']['rating'].iloc[train_index]
+                data['X_valid']= data['train'].drop(['rating'], axis = 1).iloc[valid_index]
+                data['y_valid'] = data['train']['rating'].iloc[valid_index]
+                data = context_data_loader(args, data)
+
+                print(f'--------------- FOLD-{idx}, INIT {args.MODEL} ---------------')
+                if args.MODEL=='FM':
+                    model = FactorizationMachineModel(args, data)
+                elif args.MODEL=='FFM':
+                    model = FieldAwareFactorizationMachineModel(args, data)
+                
+                print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
+                model.train()
+                
+                print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
+                kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
+            
+            print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
+            predicts = np.mean(kfold_predicts, axis = 1).tolist()
+            submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+                submission['rating'] = predicts
+            else:
+                pass
+        
+        elif args.MODEL in ('NCF', 'WDN', 'DCN'):
+            for idx, train_index, valid_index in enumerate(skf.split(
+                                                data['train'].drop(['rating'], axis = 1),
+                                                data['train']['rating']
+                                                )):
+                data['X_train']= data['train'].drop(['rating'], axis = 1).iloc[train_index]
+                data['y_train'] = data['train']['rating'].iloc[train_index]
+                data['X_valid']= data['train'].drop(['rating'], axis = 1).iloc[valid_index]
+                data['y_valid'] = data['train']['rating'].iloc[valid_index]
+                data = dl_data_loader(args, data)
+
+                print(f'--------------- FOLD-{idx}, INIT {args.MODEL} ---------------')
+                if args.MODEL=='NCF':
+                    model = NeuralCollaborativeFiltering(args, data)
+                elif args.MODEL=='WDN':
+                    model = WideAndDeepModel(args, data)
+                elif args.MODEL=='DCN':
+                    model = DeepCrossNetworkModel(args, data)
+                
+                print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
+                model.train()
+                
+                print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
+                kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
+            
+            print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
+            predicts = np.mean(kfold_predicts, axis = 1).tolist()
+            submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+                submission['rating'] = predicts
+            else:
+                pass
+        
+        elif args.MODEL == 'CNN_FM':
+            for idx, train_index, valid_index in enumerate(skf.split(
+                                                data['img_train'][['user_id', 'isbn', 'img_vector']],
+                                                data['img_train']['rating']
+                                                )):
+                data['X_train']= data['img_train'][['user_id', 'isbn', 'img_vector']].iloc[train_index]
+                data['y_train'] = data['img_train']['rating'].iloc[train_index]
+                data['X_valid']= data['img_train'][['user_id', 'isbn', 'img_vector']].iloc[valid_index]
+                data['y_valid'] = data['img_train']['rating'].iloc[valid_index]
+                data = image_data_loader(args, data)
+
+                print(f'--------------- FOLD-{idx}, INIT {args.MODEL} ---------------')
+                model = CNN_FM(args, data)
+                
+                print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
+                model.train()
+                
+                print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
+                kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
+            
+            print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
+            predicts = np.mean(kfold_predicts, axis = 1).tolist()
+            submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+                submission['rating'] = predicts
+            else:
+                pass
+        
+        elif args.MODEL == 'DeepCoNN':
+            for idx, train_index, valid_index in enumerate(skf.split(
+                                                data['text_train'][['user_id', 'isbn', 'user_summary_merge_vector', 'item_summary_vector']],
+                                                data['text_train']['rating']
+                                                )):
+                data['X_train']= data['text_train'][['user_id', 'isbn', 'user_summary_merge_vector', 'item_summary_vector']].iloc[train_index]
+                data['y_train'] = data['text_train']['rating'].iloc[train_index]
+                data['X_valid']= data['text_train'][['user_id', 'isbn', 'user_summary_merge_vector', 'item_summary_vector']].iloc[valid_index]
+                data['y_valid'] = data['text_train']['rating'].iloc[valid_index]
+                data = text_data_loader(args, data)
+
+                print(f'--------------- FOLD-{idx}, INIT {args.MODEL} ---------------')
+                model = DeepCoNN(args, data)
+                
+                print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
+                model.train()
+                
+                print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
+                kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
+            
+            print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
+            predicts = np.mean(kfold_predicts, axis = 1).tolist()
+            submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+                submission['rating'] = predicts
+            else:
+                pass
+
+                    
 
     now = time.localtime()
     now_date = time.strftime('%Y%m%d', now)
@@ -116,7 +247,8 @@ if __name__ == "__main__":
     arg('--DATA_SHUFFLE', type=bool, default=True, help='데이터 셔플 여부를 조정할 수 있습니다.')
     arg('--TEST_SIZE', type=float, default=0.2, help='Train/Valid split 비율을 조정할 수 있습니다.')
     arg('--SEED', type=int, default=42, help='seed 값을 조정할 수 있습니다.')
-    arg('--VALID', type = int, default = 'kfold', help = "kfold, random")
+    arg('--VALID', type = str, default = 'kfold', help = "kfold, random")
+    arg('--N_SPLITS', type = int, default = 5)
     
     ############### TRAINING OPTION
     arg('--BATCH_SIZE', type=int, default=1024, help='Batch size를 조정할 수 있습니다.')
