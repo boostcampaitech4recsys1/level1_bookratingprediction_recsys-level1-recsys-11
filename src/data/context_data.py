@@ -45,6 +45,11 @@ def process_context_data(users, books, ratings1, ratings2):
     train_df = ratings1.merge(users, on='user_id', how='left').merge(books[['isbn', 'category', 'publisher', 'year_of_publication', 'book_author']], on='isbn', how='left')
     test_df = ratings2.merge(users, on='user_id', how='left').merge(books[['isbn', 'category', 'publisher', 'year_of_publication', 'book_author']], on='isbn', how='left')
 
+    column_list = ['location_city', 'location_state', 'location_country', 'age', 'book_author', \
+                        'year_of_publication', 'publisher', 'category']
+    # year of publication cases 4
+    columns = [column for column in column_list if train_df.iloc[0][column] != -1]
+
     # 인덱싱 처리
     loc_city2idx = {v:k for k,v in enumerate(context_df['location_city'].unique())}
     loc_state2idx = {v:k for k,v in enumerate(context_df['location_state'].unique())}
@@ -84,7 +89,13 @@ def process_context_data(users, books, ratings1, ratings2):
         "author2idx":author2idx,
     }
 
-    return idx, train_df, test_df
+    length_db = {'age':6, 'year_of_publication': 4, 
+                'location_city': len(idx['loc_city2idx']), 'location_state': len(idx['loc_state2idx']), 
+                'location_country': len(idx['loc_country2idx']), 'category': len(idx['category2idx']), 'publisher': len(idx['publisher2idx']),
+                'book_author': len(idx['author2idx'])}
+    field_dims = [length_db[column] for column in columns]
+
+    return idx, train_df, test_df, columns, field_dims
 
 
 def context_data_load(args):
@@ -117,19 +128,14 @@ def context_data_load(args):
     test['isbn'] = test['isbn'].map(isbn2idx)
     books['isbn'] = books['isbn'].map(isbn2idx)
 
-    idx, context_train, context_test = process_context_data(users, books, train, test)
-    column_list = ['user_id', 'isbn', 'location_city', 'location_state', 'location_country', 'age', 'book_author', \
-                        'year_of_publication', 'publisher', 'category']
-    # year of publication cases 4
-    length_db = {'user_id': len(user2idx), 'isbn': len(isbn2idx), 'age':6, 'year_of_publication': 4, 
-                'location_city': len(idx['loc_city2idx']), 'location_state': len(idx['loc_state2idx']), 
-                'location_country': len(idx['loc_country2idx']), 'category': len(idx['category2idx']), 'publisher': len(idx['publisher2idx'])
-                'book_author': len(idx['author2idx'])}
-    columns = [column for column in column_list if context_train.iloc[0] != -1]
-    field_dims = np.array([length_db[column] for column in column_list if context_train.iloc[0] != -1], dtype=np.uint32)
-    # field_dims = np.array([len(user2idx), len(isbn2idx),
-    #                         6, len(idx['loc_city2idx']), len(idx['loc_state2idx']), len(idx['loc_country2idx']),
-    #                         len(idx['category2idx']), len(idx['publisher2idx']), len(idx['language2idx']), len(idx['author2idx'])], dtype=np.uint32)
+    idx, context_train, context_test, columns, field_dims = process_context_data(users, books, train, test)
+    """
+    'user_id': len(user2idx), 'isbn': len(isbn2idx), 
+    """
+    columns = ['user_id', 'isbn'] + columns
+    field_dims = np.array([len(user2idx), len(isbn2idx)] + field_dims, dtype = np.int64)
+    context_train = context_train[columns + ['rating']]
+    context_test = context_test[columns + ['rating']]
 
     data = {
             'train':context_train,
@@ -156,7 +162,9 @@ def context_data_split(args, data):
                                                         random_state=args.SEED,
                                                         shuffle=True
                                                         )
+    
     data['X_train'], data['X_valid'], data['y_train'], data['y_valid'] = X_train, X_valid, y_train, y_valid
+    print(data['X_train'].head(5))
     return data
 
 def context_data_loader(args, data):

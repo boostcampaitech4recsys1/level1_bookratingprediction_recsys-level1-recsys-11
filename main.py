@@ -1,6 +1,7 @@
 import time
 import argparse
 import pandas as pd
+import numpy as np
 
 from src import seed_everything
 
@@ -92,7 +93,7 @@ def main(args):
 
         ######################## SAVE PREDICT
         print(f'--------------- SAVE {args.MODEL} PREDICT ---------------')
-        submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+        submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
         if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
             submission['rating'] = predicts
         else:
@@ -104,7 +105,7 @@ def main(args):
         kfold_predicts = np.zeros((args.N_SPLITS, length))
 
         if args.MODEL in ('FM', 'FFM'):
-            for idx, train_index, valid_index in enumerate(skf.split(
+            for idx, (train_index, valid_index) in enumerate(skf.split(
                                                 data['train'].drop(['rating'], axis = 1),
                                                 data['train']['rating']
                                                 )):
@@ -128,15 +129,15 @@ def main(args):
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
             
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
-            predicts = np.mean(kfold_predicts, axis = 1).tolist()
-            submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+            predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
                 submission['rating'] = predicts
             else:
                 pass
         
         elif args.MODEL in ('NCF', 'WDN', 'DCN'):
-            for idx, train_index, valid_index in enumerate(skf.split(
+            for idx, (train_index, valid_index) in enumerate(skf.split(
                                                 data['train'].drop(['rating'], axis = 1),
                                                 data['train']['rating']
                                                 )):
@@ -161,15 +162,15 @@ def main(args):
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
             
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
-            predicts = np.mean(kfold_predicts, axis = 1).tolist()
-            submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+            predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
                 submission['rating'] = predicts
             else:
                 pass
         
         elif args.MODEL == 'CNN_FM':
-            for idx, train_index, valid_index in enumerate(skf.split(
+            for idx, (train_index, valid_index) in enumerate(skf.split(
                                                 data['img_train'][['user_id', 'isbn', 'img_vector']],
                                                 data['img_train']['rating']
                                                 )):
@@ -189,15 +190,15 @@ def main(args):
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
             
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
-            predicts = np.mean(kfold_predicts, axis = 1).tolist()
-            submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+            predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
                 submission['rating'] = predicts
             else:
                 pass
         
         elif args.MODEL == 'DeepCoNN':
-            for idx, train_index, valid_index in enumerate(skf.split(
+            for idx, (train_index, valid_index) in enumerate(skf.split(
                                                 data['text_train'][['user_id', 'isbn', 'user_summary_merge_vector', 'item_summary_vector']],
                                                 data['text_train']['rating']
                                                 )):
@@ -217,8 +218,8 @@ def main(args):
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
             
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
-            predicts = np.mean(kfold_predicts, axis = 1).tolist()
-            submission = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+            predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
                 submission['rating'] = predicts
             else:
@@ -230,7 +231,7 @@ def main(args):
     now_date = time.strftime('%Y%m%d', now)
     now_hour = time.strftime('%X', now)
     save_time = now_date + '_' + now_hour.replace(':', '')
-    submission.to_csv('submit/{}_{}.csv'.format(save_time, args.MODEL), index=False)
+    submission.to_csv('/opt/ml/data/submit/{}_{}.csv'.format(save_time, args.MODEL), index=False)
 
 
 
@@ -255,9 +256,9 @@ if __name__ == "__main__":
     
     ############### TRAINING OPTION
     arg('--BATCH_SIZE', type=int, default=64, help='Batch size를 조정할 수 있습니다.')
-    arg('--EPOCHS', type=int, default=10, help='Epoch 수를 조정할 수 있습니다.')
+    arg('--EPOCHS', type=int, default=50, help='Epoch 수를 조정할 수 있습니다.')
     arg('--LR', type=float, default=1e-4, help='Learning Rate를 조정할 수 있습니다.')
-    arg('--WEIGHT_DECAY', type=float, default=1e-6, help='Adam optimizer에서 정규화에 사용하는 값을 조정할 수 있습니다.')
+    arg('--WEIGHT_DECAY', type=float, default=1e-5, help='Adam optimizer에서 정규화에 사용하는 값을 조정할 수 있습니다.')
     arg('--PATIENCE', type = int, default = 3, help = 'Early Stop patience')
 
     ############### GPU
