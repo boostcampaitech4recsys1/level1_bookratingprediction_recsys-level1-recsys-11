@@ -70,7 +70,7 @@ class FactorizationMachineModel:
             'checkpoint.pt')
         self.model.load_state_dict(torch.load(ppath))
         rmse_score = self.predict_train()
-        print('epoch:', epoch, 'validation: rmse:', rmse_score)
+        print(f"u{formatted_user_num}_b{formatted_book_num}, validation rmse: {rmse_score}")
         print('\n')
 
 
