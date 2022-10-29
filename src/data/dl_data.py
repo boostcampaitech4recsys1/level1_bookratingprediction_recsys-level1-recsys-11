@@ -8,8 +8,10 @@ from torch.utils.data import TensorDataset, DataLoader, Dataset
 def dl_data_load(args):
 
     ######################## DATA LOAD
-    users = pd.read_csv(args.DATA_PATH + 'users', f'u{args.USER_NUM}.csv')
-    books = pd.read_csv(args.DATA_PATH + 'books', f'b{args.BOOK_NUM}.csv')
+    formatted_user_num = format(args.USER_NUM, '02')
+    formatted_book_num = format(args.BOOK_NUM, '02')
+    users = pd.read_csv(args.DATA_PATH + 'users', f'u{args.formatted_user_num}.csv')
+    books = pd.read_csv(args.DATA_PATH + 'books', f'b{args.formatted_book_num}.csv')
     train = pd.read_csv(args.DATA_PATH + 'train_ratings.csv')
     test = pd.read_csv(args.DATA_PATH + 'test_ratings.csv')
     sub = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')

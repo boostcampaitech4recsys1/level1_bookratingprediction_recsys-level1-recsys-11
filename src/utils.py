@@ -44,16 +44,14 @@ class EarlyStopping:
             print(
                 f"Validation rmse decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ..."
             )
-        # ppath = Path(
-        #     os.path.join(
-        #         self.args.model_dir,
-        #         self.args.train_mode,
-        #         self.args.train_type,
-        #         f"level_{self.args.level}",
-        #         "checkpoint.pt",
-        #     )
-        # )
-        # ppath.parent.mkdir(parents=True, exist_ok=True)
+        ppath = Path(
+            os.path.join(
+                self.args.SAVE_PATH,
+                self.args.MODEL,
+                self.args.
+            )
+        )
+        ppath.parent.mkdir(parents=True, exist_ok=True)
 
-        # torch.save(model.state_dict(), str(ppath))
+        torch.save(model.state_dict(), str(ppath))
         self.val_loss_min = val_loss
