@@ -165,9 +165,10 @@ def main():
     num = 1
     for i in range(n_loc):
         for j in range(n_age):
+            formatted_num = format(num, '02')
             file = users[['user_id', f'location_city{i+1}', f'location_state{i+1}', f'location_country{i+1}', f'age{j+1}']]
             file.columns = [['user_id', 'location_city', 'location_state', 'location_country', 'age']]
-            file.to_csv(f'../../data/users/u{num}.csv', index=False)
+            file.to_csv(f'../../data/users/u{formatted_num}.csv', index=False)
             num += 1
 
 
