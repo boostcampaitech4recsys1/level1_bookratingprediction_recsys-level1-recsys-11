@@ -10,11 +10,11 @@ def dl_data_load(args):
     ######################## DATA LOAD
     formatted_user_num = format(args.USER_NUM, '02')
     formatted_book_num = format(args.BOOK_NUM, '02')
-    users = pd.read_csv(args.DATA_PATH + 'users', f'u{args.formatted_user_num}.csv')
-    books = pd.read_csv(args.DATA_PATH + 'books', f'b{args.formatted_book_num}.csv')
-    train = pd.read_csv(args.DATA_PATH + 'train_ratings.csv')
-    test = pd.read_csv(args.DATA_PATH + 'test_ratings.csv')
-    sub = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
+    users = pd.read_csv(args.DATA_PATH + 'users/' + f'u{formatted_user_num}.csv')
+    books = pd.read_csv(args.DATA_PATH + 'books/' + f'b{formatted_book_num}.csv')
+    train = pd.read_csv(args.DATA_PATH + 'ratings/' + 'train_ratings.csv')
+    test = pd.read_csv(args.DATA_PATH + 'ratings/' + 'test_ratings.csv')
+    sub = pd.read_csv(args.DATA_PATH + 'ratings/' + 'sample_submission.csv')
 
     ids = pd.concat([train['user_id'], sub['user_id']]).unique()
     isbns = pd.concat([train['isbn'], sub['isbn']]).unique()

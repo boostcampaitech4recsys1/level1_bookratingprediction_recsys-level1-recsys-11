@@ -241,8 +241,8 @@ if __name__ == "__main__":
     arg = parser.add_argument
 
     ############### BASIC OPTION
-    arg('--DATA_PATH', type=str, default='/opt/ml/data', help='Data path를 설정할 수 있습니다.')
-    arg('--SAVE_PATH', type = str, default = '/opt/ml/weights', help = "학습된 모델들이 저장되는 path입니다.")
+    arg('--DATA_PATH', type=str, default='/opt/ml/data/', help='Data path를 설정할 수 있습니다.')
+    arg('--SAVE_PATH', type = str, default = '/opt/ml/weights/', help = "학습된 모델들이 저장되는 path입니다.")
     arg('--USER_NUM', type = int, help = "user data preprocessed number `1 ~ 9`")
     arg('--BOOK_NUM', type = int, help = "book data preprocessed number `1 ~ 24`")
     arg('--MODEL', type=str, choices=['FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'],
@@ -254,9 +254,9 @@ if __name__ == "__main__":
     arg('--N_SPLITS', type = int, default = 5)
     
     ############### TRAINING OPTION
-    arg('--BATCH_SIZE', type=int, default=1024, help='Batch size를 조정할 수 있습니다.')
+    arg('--BATCH_SIZE', type=int, default=64, help='Batch size를 조정할 수 있습니다.')
     arg('--EPOCHS', type=int, default=10, help='Epoch 수를 조정할 수 있습니다.')
-    arg('--LR', type=float, default=1e-3, help='Learning Rate를 조정할 수 있습니다.')
+    arg('--LR', type=float, default=1e-4, help='Learning Rate를 조정할 수 있습니다.')
     arg('--WEIGHT_DECAY', type=float, default=1e-6, help='Adam optimizer에서 정규화에 사용하는 값을 조정할 수 있습니다.')
     arg('--PATIENCE', type = int, default = 3, help = 'Early Stop patience')
 
