@@ -167,7 +167,7 @@ def main():
         for j in range(n_age):
             file = users[['user_id', f'location_city{i+1}', f'location_state{i+1}', f'location_country{i+1}', f'age{j+1}']]
             file.columns = [['user_id', 'location_city', 'location_state', 'location_country', 'age']]
-            file.to_csv(f'../../data/users/u{num}_l{i+1}_a{j+1}.csv', index=False)
+            file.to_csv(f'../../data/users/u{num}.csv', index=False)
             num += 1
 
 
