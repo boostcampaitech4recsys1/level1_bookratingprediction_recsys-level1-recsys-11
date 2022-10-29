@@ -8,7 +8,7 @@ import torch.optim as optim
 
 from ._models import _FactorizationMachineModel, _FieldAwareFactorizationMachineModel
 from ._models import rmse, RMSELoss
-
+from src.utils import EarlyStopping
 
 class FactorizationMachineModel:
 
@@ -106,6 +106,8 @@ class FieldAwareFactorizationMachineModel:
 
     def train(self):
       # model: type, optimizer: torch.optim, train_dataloader: DataLoader, criterion: torch.nn, device: str, log_interval: int=100
+        early_stopping = EarlyStopping(args=self.args, verbose=True)
+
         for epoch in range(self.epochs):
             self.model.train()
             total_loss = 0
@@ -121,6 +123,12 @@ class FieldAwareFactorizationMachineModel:
                 if (i + 1) % self.log_interval == 0:
                     tk0.set_postfix(loss=total_loss / self.log_interval)
                     total_loss = 0
+            
+            early_stopping(total_loss / (i + 1), self.model)
+
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
 
             rmse_score = self.predict_train()
             print('epoch:', epoch, 'validation: rmse:', rmse_score)

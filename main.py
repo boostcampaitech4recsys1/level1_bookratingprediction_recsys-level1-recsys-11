@@ -241,7 +241,9 @@ if __name__ == "__main__":
     arg = parser.add_argument
 
     ############### BASIC OPTION
-    arg('--DATA_PATH', type=str, default='/opt/ml/input/code/data', help='Data path를 설정할 수 있습니다.')
+    arg('--DATA_PATH', type=str, default='/opt/ml/data', help='Data path를 설정할 수 있습니다.')
+    arg('--USER_NUM', type = int, help = "user data preprocessed number `1 ~ 9`")
+    arg('--BOOK_NUM', type = int, help = "book data preprocessed number `1 ~ 24`")
     arg('--MODEL', type=str, choices=['FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'],
                                 help='학습 및 예측할 모델을 선택할 수 있습니다.')
     arg('--DATA_SHUFFLE', type=bool, default=True, help='데이터 셔플 여부를 조정할 수 있습니다.')
@@ -255,6 +257,7 @@ if __name__ == "__main__":
     arg('--EPOCHS', type=int, default=10, help='Epoch 수를 조정할 수 있습니다.')
     arg('--LR', type=float, default=1e-3, help='Learning Rate를 조정할 수 있습니다.')
     arg('--WEIGHT_DECAY', type=float, default=1e-6, help='Adam optimizer에서 정규화에 사용하는 값을 조정할 수 있습니다.')
+    arg('--PATIENCE', type = int, default = 3, help = 'Early Stop patience')
 
     ############### GPU
     arg('--DEVICE', type=str, default='cuda', choices=['cuda', 'cpu'], help='학습에 사용할 Device를 조정할 수 있습니다.')

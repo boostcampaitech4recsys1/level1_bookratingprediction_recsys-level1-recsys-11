@@ -81,8 +81,8 @@ def process_context_data(users, books, ratings1, ratings2):
 def context_data_load(args):
 
     ######################## DATA LOAD
-    users = pd.read_csv(args.DATA_PATH + 'users.csv')
-    books = pd.read_csv(args.DATA_PATH + 'books.csv')
+    users = pd.read_csv(args.DATA_PATH + 'users', f'u{args.USER_NUM}.csv')
+    books = pd.read_csv(args.DATA_PATH + 'books', f'b{args.BOOK_NUM}.csv')
     train = pd.read_csv(args.DATA_PATH + 'train_ratings.csv')
     test = pd.read_csv(args.DATA_PATH + 'test_ratings.csv')
     sub = pd.read_csv(args.DATA_PATH + 'sample_submission.csv')
