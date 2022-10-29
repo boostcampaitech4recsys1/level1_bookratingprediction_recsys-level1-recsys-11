@@ -14,7 +14,7 @@ class FactorizationMachineModel:
 
     def __init__(self, args, data):
         super().__init__()
-
+        self.args = args
         self.criterion = RMSELoss()
 
         self.train_dataloader = data['train_dataloader']
@@ -33,8 +33,9 @@ class FactorizationMachineModel:
         self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=self.learning_rate, amsgrad=True, weight_decay=self.weight_decay)
 
 
-    def train(self):
+    def train(self, fold_num):
       # model: type, optimizer: torch.optim, train_dataloader: DataLoader, criterion: torch.nn, device: str, log_interval: int=100
+        early_stopping = EarlyStopping(args=self.args, fold_num = fold_num, verbose=True)
         for epoch in range(self.epochs):
             self.model.train()
             total_loss = 0
@@ -54,7 +55,22 @@ class FactorizationMachineModel:
                     total_loss = 0
 
             rmse_score = self.predict_train()
-            print('epoch:', epoch, 'validation: rmse:', rmse_score)
+            early_stopping(rmse_score, self.model)  
+
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+
+        formatted_user_num = format(self.args.USER_NUM, '02')
+        formatted_book_num = format(self.args.BOOK_NUM, '02')
+        ppath = os.path.join(self.args.SAVE_PATH,
+            self.args.MODEL,
+            f"u{formatted_user_num}_b{formatted_book_num}",
+            f"fold{fold_num}",
+            'checkpoint.pt')
+        self.model.load_state_dict(torch.load(ppath))
+        rmse_score = self.predict_train()
+        print('epoch:', epoch, 'validation: rmse:', rmse_score)
 
 
 
@@ -85,7 +101,7 @@ class FieldAwareFactorizationMachineModel:
 
     def __init__(self, args, data):
         super().__init__()
-
+        self.args = args
         self.criterion = RMSELoss()
 
         self.train_dataloader = data['train_dataloader']
@@ -104,9 +120,9 @@ class FieldAwareFactorizationMachineModel:
         self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=self.learning_rate, amsgrad=True, weight_decay=self.weight_decay)
 
 
-    def train(self):
+    def train(self, fold_num):
       # model: type, optimizer: torch.optim, train_dataloader: DataLoader, criterion: torch.nn, device: str, log_interval: int=100
-        early_stopping = EarlyStopping(args=self.args, verbose=True)
+        early_stopping = EarlyStopping(args=self.args, fold_num = fold_num, verbose=True)
 
         for epoch in range(self.epochs):
             self.model.train()
@@ -124,14 +140,22 @@ class FieldAwareFactorizationMachineModel:
                     tk0.set_postfix(loss=total_loss / self.log_interval)
                     total_loss = 0
             
-            early_stopping(total_loss / (i + 1), self.model)
+            rmse_score = self.predict_train()
+            early_stopping(rmse_score, self.model)
 
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
-
-            rmse_score = self.predict_train()
-            print('epoch:', epoch, 'validation: rmse:', rmse_score)
+        formatted_user_num = format(self.args.USER_NUM, '02')
+        formatted_book_num = format(self.args.BOOK_NUM, '02')
+        ppath = os.path.join(self.args.SAVE_PATH,
+            self.args.MODEL,
+            f"u{formatted_user_num}_b{formatted_book_num}",
+            f"fold{fold_num}",
+            'checkpoint.pt')
+        self.model.load_state_dict(torch.load(ppath))
+        rmse_score = self.predict_train()
+        print('epoch:', epoch, 'validation: rmse:', rmse_score)
 
 
     def predict_train(self):

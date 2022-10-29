@@ -14,8 +14,9 @@ def seed_everything(seed):
 
 
 class EarlyStopping:
-    def __init__(self, args, verbose=False, delta=0):
+    def __init__(self, args, fold_num, verbose=False, delta=0):
         self.args = args
+        self.fold_num = fold_num
         self.patience = args.PATIENCE
         self.verbose = verbose
         self.counter = 0
@@ -44,11 +45,15 @@ class EarlyStopping:
             print(
                 f"Validation rmse decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).  Saving model ..."
             )
+        formatted_user_num = format(self.args.USER_NUM, '02')
+        formatted_book_num = format(self.args.BOOK_NUM, '02')
         ppath = Path(
             os.path.join(
                 self.args.SAVE_PATH,
                 self.args.MODEL,
-                self.args.
+                f"u{formatted_user_num}_b{formatted_book_num}",
+                f"fold{self.fold_num}",
+                'checkpoint.pt'
             )
         )
         ppath.parent.mkdir(parents=True, exist_ok=True)

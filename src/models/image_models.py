@@ -49,6 +49,7 @@ class _CNN_FM(torch.nn.Module):
 class CNN_FM:
     def __init__(self, args, data):
         super().__init__()
+        self.args = args
         self.device = args.DEVICE
         self.model = _CNN_FM(
                             np.array([len(data['user2idx']), len(data['isbn2idx'])], dtype=np.uint32),
@@ -63,7 +64,7 @@ class CNN_FM:
         self.model_name = 'image_model'
 
 
-    def train(self):
+    def train(self, fold_num):
         minimum_loss = 999999999
         loss_list = []
         tk0 = tqdm.tqdm(range(self.epochs), smoothing=0, mininterval=1.0)

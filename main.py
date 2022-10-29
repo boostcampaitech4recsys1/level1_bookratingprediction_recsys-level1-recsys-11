@@ -77,7 +77,7 @@ def main(args):
 
         ######################## TRAIN
         print(f'--------------- {args.MODEL} TRAINING ---------------')
-        model.train()
+        model.train(fold_num = 0)
 
         ######################## INFERENCE
         print(f'--------------- {args.MODEL} PREDICT ---------------')
@@ -122,7 +122,7 @@ def main(args):
                     model = FieldAwareFactorizationMachineModel(args, data)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
-                model.train()
+                model.train(fold_num = idx)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
@@ -155,7 +155,7 @@ def main(args):
                     model = DeepCrossNetworkModel(args, data)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
-                model.train()
+                model.train(fold_num = idx)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
@@ -183,7 +183,7 @@ def main(args):
                 model = CNN_FM(args, data)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
-                model.train()
+                model.train(fold_num = idx)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
@@ -211,7 +211,7 @@ def main(args):
                 model = DeepCoNN(args, data)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
-                model.train()
+                model.train(fold_num = idx)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
@@ -242,6 +242,7 @@ if __name__ == "__main__":
 
     ############### BASIC OPTION
     arg('--DATA_PATH', type=str, default='/opt/ml/data', help='Data path를 설정할 수 있습니다.')
+    arg('--SAVE_PATH', type = str, default = '/opt/ml/weights', help = "학습된 모델들이 저장되는 path입니다.")
     arg('--USER_NUM', type = int, help = "user data preprocessed number `1 ~ 9`")
     arg('--BOOK_NUM', type = int, help = "book data preprocessed number `1 ~ 24`")
     arg('--MODEL', type=str, choices=['FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'],
