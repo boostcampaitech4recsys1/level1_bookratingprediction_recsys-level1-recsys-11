@@ -20,18 +20,30 @@ def age_map(x: int) -> int:
     else:
         return 6
 
-def process_context_data(users, books, ratings1, ratings2):
-    users['location_city'] = users['location'].apply(lambda x: x.split(',')[0])
-    users['location_state'] = users['location'].apply(lambda x: x.split(',')[1])
-    users['location_country'] = users['location'].apply(lambda x: x.split(',')[2])
-    users = users.drop(['location'], axis=1)
+def year_of_publication_map(x: int) -> int:
+    """
+    25%        1991.000000
+    50%        1996.000000
+    75%        2000.000000
+    max        2006.000000
+    """
+    x = int(x)
+    if x < 1991:
+        return 1
+    elif x >= 1991 and x < 1996:
+        return 2
+    elif x >= 1996 and x < 2000:
+        return 3
+    else:
+        return 4
 
+def process_context_data(users, books, ratings1, ratings2):
     ratings = pd.concat([ratings1, ratings2]).reset_index(drop=True)
 
     # 인덱싱 처리된 데이터 조인
-    context_df = ratings.merge(users, on='user_id', how='left').merge(books[['isbn', 'category', 'publisher', 'language', 'book_author']], on='isbn', how='left')
-    train_df = ratings1.merge(users, on='user_id', how='left').merge(books[['isbn', 'category', 'publisher', 'language', 'book_author']], on='isbn', how='left')
-    test_df = ratings2.merge(users, on='user_id', how='left').merge(books[['isbn', 'category', 'publisher', 'language', 'book_author']], on='isbn', how='left')
+    context_df = ratings.merge(users, on='user_id', how='left').merge(books[['isbn', 'category', 'publisher', 'year_of_publication', 'book_author']], on='isbn', how='left')
+    train_df = ratings1.merge(users, on='user_id', how='left').merge(books[['isbn', 'category', 'publisher', 'year_of_publication', 'book_author']], on='isbn', how='left')
+    test_df = ratings2.merge(users, on='user_id', how='left').merge(books[['isbn', 'category', 'publisher', 'year_of_publication', 'book_author']], on='isbn', how='left')
 
     # 인덱싱 처리
     loc_city2idx = {v:k for k,v in enumerate(context_df['location_city'].unique())}
@@ -45,24 +57,22 @@ def process_context_data(users, books, ratings1, ratings2):
     test_df['location_state'] = test_df['location_state'].map(loc_state2idx)
     test_df['location_country'] = test_df['location_country'].map(loc_country2idx)
 
-    train_df['age'] = train_df['age'].fillna(int(train_df['age'].mean()))
     train_df['age'] = train_df['age'].apply(age_map)
-    test_df['age'] = test_df['age'].fillna(int(test_df['age'].mean()))
     test_df['age'] = test_df['age'].apply(age_map)
+
+    train_df['year_of_publication'] = train_df['year_of_publication'].apply(year_of_publication_map)
+    test_df['year_of_publication'] = test_df['year_of_publication'].apply(year_of_publication_map)
 
     # book 파트 인덱싱
     category2idx = {v:k for k,v in enumerate(context_df['category'].unique())}
     publisher2idx = {v:k for k,v in enumerate(context_df['publisher'].unique())}
-    language2idx = {v:k for k,v in enumerate(context_df['language'].unique())}
     author2idx = {v:k for k,v in enumerate(context_df['book_author'].unique())}
 
     train_df['category'] = train_df['category'].map(category2idx)
     train_df['publisher'] = train_df['publisher'].map(publisher2idx)
-    train_df['language'] = train_df['language'].map(language2idx)
     train_df['book_author'] = train_df['book_author'].map(author2idx)
     test_df['category'] = test_df['category'].map(category2idx)
     test_df['publisher'] = test_df['publisher'].map(publisher2idx)
-    test_df['language'] = test_df['language'].map(language2idx)
     test_df['book_author'] = test_df['book_author'].map(author2idx)
 
     idx = {
@@ -71,7 +81,6 @@ def process_context_data(users, books, ratings1, ratings2):
         "loc_country2idx":loc_country2idx,
         "category2idx":category2idx,
         "publisher2idx":publisher2idx,
-        "language2idx":language2idx,
         "author2idx":author2idx,
     }
 
@@ -109,9 +118,18 @@ def context_data_load(args):
     books['isbn'] = books['isbn'].map(isbn2idx)
 
     idx, context_train, context_test = process_context_data(users, books, train, test)
-    field_dims = np.array([len(user2idx), len(isbn2idx),
-                            6, len(idx['loc_city2idx']), len(idx['loc_state2idx']), len(idx['loc_country2idx']),
-                            len(idx['category2idx']), len(idx['publisher2idx']), len(idx['language2idx']), len(idx['author2idx'])], dtype=np.uint32)
+    column_list = ['user_id', 'isbn', 'location_city', 'location_state', 'location_country', 'age', 'book_author', \
+                        'year_of_publication', 'publisher', 'category']
+    # year of publication cases 4
+    length_db = {'user_id': len(user2idx), 'isbn': len(isbn2idx), 'age':6, 'year_of_publication': 4, 
+                'location_city': len(idx['loc_city2idx']), 'location_state': len(idx['loc_state2idx']), 
+                'location_country': len(idx['loc_country2idx']), 'category': len(idx['category2idx']), 'publisher': len(idx['publisher2idx'])
+                'book_author': len(idx['author2idx'])}
+    columns = [column for column in column_list if context_train.iloc[0] != -1]
+    field_dims = np.array([length_db[column] for column in column_list if context_train.iloc[0] != -1], dtype=np.uint32)
+    # field_dims = np.array([len(user2idx), len(isbn2idx),
+    #                         6, len(idx['loc_city2idx']), len(idx['loc_state2idx']), len(idx['loc_country2idx']),
+    #                         len(idx['category2idx']), len(idx['publisher2idx']), len(idx['language2idx']), len(idx['author2idx'])], dtype=np.uint32)
 
     data = {
             'train':context_train,
