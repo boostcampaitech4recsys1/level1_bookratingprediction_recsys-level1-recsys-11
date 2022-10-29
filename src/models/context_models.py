@@ -71,6 +71,7 @@ class FactorizationMachineModel:
         self.model.load_state_dict(torch.load(ppath))
         rmse_score = self.predict_train()
         print('epoch:', epoch, 'validation: rmse:', rmse_score)
+        print('\n')
 
 
 
