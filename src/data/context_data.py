@@ -47,7 +47,8 @@ def process_context_data(users, books, ratings1, ratings2):
 
     column_list = ['location_city', 'location_state', 'location_country', 'age', 'book_author', \
                         'year_of_publication', 'publisher', 'category']
-    # year of publication cases 4
+
+    # -1 컬럼 제외 처리
     columns = [column for column in column_list if train_df.iloc[0][column] != -1]
 
     # 인덱싱 처리
@@ -65,6 +66,7 @@ def process_context_data(users, books, ratings1, ratings2):
     train_df['age'] = train_df['age'].apply(age_map)
     test_df['age'] = test_df['age'].apply(age_map)
 
+    # year of publication cases 4
     train_df['year_of_publication'] = train_df['year_of_publication'].apply(year_of_publication_map)
     test_df['year_of_publication'] = test_df['year_of_publication'].apply(year_of_publication_map)
 
@@ -150,11 +152,19 @@ def context_data_load(args):
             'isbn2idx':isbn2idx,
             }
 
-
     return data
 
 
 def context_data_split(args, data):
+    if args.MODEL in ('XGB', 'LGBM', 'CATB'):
+        re_concat = pd.concat([data['train'], data['test']]).reset_index(drop=True)
+        re_concat = re_concat.drop(['isbn', 'user_id'], axis=1)
+        re_concat = pd.get_dummies(re_concat, columns=re_concat.drop('rating', axis=1).columns)
+        
+        data['train'] = re_concat[re_concat['rating'].notnull()]
+        data['test'] = re_concat[re_concat['rating'].isna()].drop('rating', axis=1)
+
+
     X_train, X_valid, y_train, y_valid = train_test_split(
                                                         data['train'].drop(['rating'], axis=1),
                                                         data['train']['rating'],
@@ -167,15 +177,22 @@ def context_data_split(args, data):
     print(data['X_train'].head(5))
     return data
 
+
 def context_data_loader(args, data):
-    train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.LongTensor(data['y_train'].values))
-    valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.LongTensor(data['y_valid'].values))
-    test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
+    if args.MODEL in ('XGB', 'LGBM', 'CATB'):
+        data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = \
+            (data['X_train'], data['y_train']), (data['X_valid'], data['y_valid']), (data['test'], None)
+    
+    else:
+        train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.LongTensor(data['y_train'].values))
+        valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.LongTensor(data['y_valid'].values))
+        test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
 
-    train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE)
-    test_dataloader = DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False)
+    
+        train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE)
+        valid_dataloader = DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False)
 
-    data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
+        data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
 
     return data
