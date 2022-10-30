@@ -11,4 +11,6 @@ from .models.dl_models import NeuralCollaborativeFiltering, WideAndDeepModel, De
 from .models.image_models import CNN_FM
 from .models.text_models import DeepCoNN
 
+from .models.gb_models import XGBoostModel, LightGBMModel, CatBoostModel
+
 from .ensembles.ensembles import Ensemble
