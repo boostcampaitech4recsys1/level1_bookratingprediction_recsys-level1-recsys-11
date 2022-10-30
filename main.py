@@ -231,7 +231,9 @@ def main(args):
     now_date = time.strftime('%Y%m%d', now)
     now_hour = time.strftime('%X', now)
     save_time = now_date + '_' + now_hour.replace(':', '')
+    print(f"[SUBMISSION NAME] {save_time}_{args.MODEL} @@@@")
     submission.to_csv('/opt/ml/data/submit/{}_{}.csv'.format(save_time, args.MODEL), index=False)
+    
 
 
 

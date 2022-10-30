@@ -2,6 +2,8 @@
 */*/*.pyc
 */*.pyc
 */*/*/*.pyc
-*/*/*/*.*.*pyc
+*/*/*/*.*.pyc
 experiment.sh
 log.txt
+*.sh
+*.txt
