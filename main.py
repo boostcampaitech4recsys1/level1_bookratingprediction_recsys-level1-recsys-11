@@ -15,6 +15,8 @@ from src import NeuralCollaborativeFiltering, WideAndDeepModel, DeepCrossNetwork
 from src import CNN_FM
 from src import DeepCoNN
 
+from src import XGBoostModel
+
 from sklearn.model_selection import StratifiedKFold
 
 
@@ -23,7 +25,7 @@ def main(args):
 
     ######################## DATA LOAD
     print(f'--------------- {args.MODEL} Load Data ---------------')
-    if args.MODEL in ('FM', 'FFM'):
+    if args.MODEL in ('FM', 'FFM', 'XGB', 'LGBM', 'CATB'):
         data = context_data_load(args)
     elif args.MODEL in ('NCF', 'WDN', 'DCN'):
         data = dl_data_load(args)
@@ -39,7 +41,7 @@ def main(args):
     if args.VALID == 'random':
         ######################## Train/Valid Split
         print(f'--------------- {args.MODEL} Train/Valid Split ---------------')
-        if args.MODEL in ('FM', 'FFM'):
+        if args.MODEL in ('FM', 'FFM', 'XGB', 'LGBM', 'CATB'):
             data = context_data_split(args, data)
             data = context_data_loader(args, data)
 
@@ -73,6 +75,12 @@ def main(args):
             model = CNN_FM(args, data)
         elif args.MODEL=='DeepCoNN':
             model = DeepCoNN(args, data)
+        elif args.MODEL=='XGB':
+            model = XGBoostModel(args, data)
+        elif args.MODEL=='LGBM':
+            model = LightGBMModel(args, data)
+        elif args.MODEL=='CATB':
+            model = CatBoostModel(args, data)
         else:
             pass
 
@@ -82,7 +90,7 @@ def main(args):
 
         ######################## INFERENCE
         print(f'--------------- {args.MODEL} PREDICT ---------------')
-        if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN'):
+        if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'XGB', 'LGBM', 'CATB'):
             predicts = model.predict(data['test_dataloader'])
         elif args.MODEL=='CNN_FM':
             predicts  = model.predict(data['test_dataloader'])
@@ -94,7 +102,7 @@ def main(args):
         ######################## SAVE PREDICT
         print(f'--------------- SAVE {args.MODEL} PREDICT ---------------')
         submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
-        if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+        if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
             submission['rating'] = predicts
         else:
             pass
@@ -104,7 +112,7 @@ def main(args):
         length = len(data['test'])
         kfold_predicts = np.zeros((args.N_SPLITS, length))
 
-        if args.MODEL in ('FM', 'FFM'):
+        if args.MODEL in ('FM', 'FFM', 'XGB', 'LGBM', 'CATB'):
             for idx, (train_index, valid_index) in enumerate(skf.split(
                                                 data['train'].drop(['rating'], axis = 1),
                                                 data['train']['rating']
@@ -121,6 +129,14 @@ def main(args):
                     model = FactorizationMachineModel(args, data)
                 elif args.MODEL=='FFM':
                     model = FieldAwareFactorizationMachineModel(args, data)
+                elif args.MODEL=='XGB':
+                    model = XGBoostModel(args, data)
+                elif args.MODEL=='LGBM':
+                    model = LightGBMModel(args, data)
+                elif args.MODEL=='CATB':
+                    model = CatBoostModel(args, data)
+                else:
+                    pass
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
                 model.train(fold_num = idx)
@@ -164,7 +180,7 @@ def main(args):
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
             predicts = np.mean(kfold_predicts, axis = 0).tolist()
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
-            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
                 submission['rating'] = predicts
             else:
                 pass
@@ -192,7 +208,7 @@ def main(args):
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
             predicts = np.mean(kfold_predicts, axis = 0).tolist()
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
-            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
                 submission['rating'] = predicts
             else:
                 pass
@@ -220,7 +236,7 @@ def main(args):
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
             predicts = np.mean(kfold_predicts, axis = 0).tolist()
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
-            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
+            if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
                 submission['rating'] = predicts
             else:
                 pass
@@ -246,7 +262,7 @@ if __name__ == "__main__":
     arg('--SAVE_PATH', type = str, default = '/opt/ml/weights/', help = "학습된 모델들이 저장되는 path입니다.")
     arg('--USER_NUM', type = int, help = "user data preprocessed number `1 ~ 9`")
     arg('--BOOK_NUM', type = int, help = "book data preprocessed number `1 ~ 24`")
-    arg('--MODEL', type=str, choices=['FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'],
+    arg('--MODEL', type=str, choices=['FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'],
                                 help='학습 및 예측할 모델을 선택할 수 있습니다.')
     arg('--DATA_SHUFFLE', type=bool, default=True, help='데이터 셔플 여부를 조정할 수 있습니다.')
     arg('--TEST_SIZE', type=float, default=0.2, help='Train/Valid split 비율을 조정할 수 있습니다.')
@@ -298,6 +314,18 @@ if __name__ == "__main__":
     arg('--DEEPCONN_KERNEL_SIZE', type=int, default=3, help='DEEP_CONN에서 1D conv의 kernel 크기를 조정할 수 있습니다.')
     arg('--DEEPCONN_WORD_DIM', type=int, default=768, help='DEEP_CONN에서 1D conv의 입력 크기를 조정할 수 있습니다.')
     arg('--DEEPCONN_OUT_DIM', type=int, default=32, help='DEEP_CONN에서 1D conv의 출력 크기를 조정할 수 있습니다.')
+
+
+    ############### XGBoost
+    arg('--XGB_RR_CL', type=str, default='rr', help='XGB regression(rr), classifier(cl) 중 선택합니다.')
+    arg('--XGB_MAX_DEPTH', type=int, default=6, help='XGB에서 트리 깊이 지정하며 깊을수록 복잡한 모델이 됩니다.')
+
+
+    ############### LightGBM
+
+    
+    ############### CatBoost
+
 
     args = parser.parse_args()
     main(args)
