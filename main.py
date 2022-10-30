@@ -15,7 +15,7 @@ from src import NeuralCollaborativeFiltering, WideAndDeepModel, DeepCrossNetwork
 from src import CNN_FM
 from src import DeepCoNN
 
-from src import XGBoostModel
+from src import XGBoostModel, LightGBMModel, CatBoostModel
 
 from sklearn.model_selection import StratifiedKFold
 
@@ -322,10 +322,11 @@ if __name__ == "__main__":
 
 
     ############### LightGBM
-
+    arg('--LGBM_RR_CL', type=str, default='rr', help='LGBM regression(rr), classifier(cl) 중 선택합니다. 기본 rr.')
     
     ############### CatBoost
-
+    arg('--CATB_RR_CL', type=str, default='rr', help='CATB regression(rr), classifier(cl) 중 선택합니다. 기본 rr.')
+    
 
     args = parser.parse_args()
     main(args)
