@@ -71,18 +71,21 @@ def main():
     books.loc[books['category3'] != 'fiction', 'category3'] = 'nonfiction'
 
 
-
+    books['category1'] = books['category_high1']
+    books['category2'] = books['category_high2']
     books['category1'] = books['category1'].fillna('None')
     books['category2'] = books['category2'].fillna('None')
     books['category3'] = books['category3'].fillna('None')
     books.drop('category_high1', axis = 1, inplace=True)
     books.drop('category_high2', axis = 1, inplace=True)
 
+    
+
 
     # publisher => 경우의 수 : 2개
     books.rename(columns={'publisher' : 'publisher1'}, inplace=True)
 
-    # publisher 있는경우
+    # # publisher 있는경우
     publisher_dict=(books['publisher1'].value_counts()).to_dict()
     publisher_count_df= pd.DataFrame(list(publisher_dict.items()),columns = ['publisher1','count'])
     publisher_count_df = publisher_count_df.sort_values(by=['count'], ascending = False)
