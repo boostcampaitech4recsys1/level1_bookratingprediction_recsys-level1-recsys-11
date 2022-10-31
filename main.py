@@ -111,6 +111,7 @@ def main(args):
         skf = StratifiedKFold(n_splits = args.N_SPLITS, shuffle = True)
         length = len(data['test'])
         kfold_predicts = np.zeros((args.N_SPLITS, length))
+        rmse_array = np.zeros(args.N_SPLITS)
 
         if args.MODEL in ('FM', 'FFM', 'XGB', 'LGBM', 'CATB'):
             for idx, (train_index, valid_index) in enumerate(skf.split(
@@ -139,7 +140,8 @@ def main(args):
                     pass
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
-                model.train(fold_num = idx)
+                rmse_score = model.train(fold_num = idx)
+                rmse_array[idx] = rmse_score
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
@@ -147,6 +149,7 @@ def main(args):
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
             predicts = np.mean(kfold_predicts, axis = 0).tolist()
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
+            print(f"[5-FOLD VALIDATION MEAN RMSE SCORE]: {rmse_array.mean()}")
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
                 submission['rating'] = predicts
             else:
@@ -161,6 +164,7 @@ def main(args):
                 data['y_train'] = data['train']['rating'].iloc[train_index]
                 data['X_valid']= data['train'].drop(['rating'], axis = 1).iloc[valid_index]
                 data['y_valid'] = data['train']['rating'].iloc[valid_index]
+                # print(data['X_train'].sample(5))
                 data = dl_data_loader(args, data)
 
                 print(f'--------------- FOLD-{idx}, INIT {args.MODEL} ---------------')
@@ -172,7 +176,8 @@ def main(args):
                     model = DeepCrossNetworkModel(args, data)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} TRAINING ---------------')
-                model.train(fold_num = idx)
+                rmse_score = model.train(fold_num = idx)
+                rmse_array[idx] = rmse_score
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
@@ -180,6 +185,7 @@ def main(args):
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
             predicts = np.mean(kfold_predicts, axis = 0).tolist()
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
+            print(f"[5-FOLD VALIDATION MEAN RMSE SCORE]: {rmse_array.mean()}")
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
                 submission['rating'] = predicts
             else:

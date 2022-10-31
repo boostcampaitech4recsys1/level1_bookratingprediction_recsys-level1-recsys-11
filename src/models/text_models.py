@@ -4,7 +4,7 @@ import tqdm
 import torch
 import torch.nn as nn
 from ._models import RMSELoss, FeaturesEmbedding, FactorizationMachine_v
-
+from src.utils import EarlyStopping
 
 class CNN_1D(nn.Module):
     def __init__(self, word_dim, out_dim, kernel_size, conv_1d_out_dim):
