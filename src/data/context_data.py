@@ -161,6 +161,8 @@ def context_data_split(args, data):
         re_concat = re_concat.drop(['isbn', 'user_id'], axis=1)
         re_concat = pd.get_dummies(re_concat, columns=re_concat.drop('rating', axis=1).columns)
         
+        print(re_concat.columns)
+
         data['train'] = re_concat[re_concat['rating'].notnull()]
         data['test'] = re_concat[re_concat['rating'].isna()].drop('rating', axis=1)
 
@@ -172,6 +174,9 @@ def context_data_split(args, data):
                                                         random_state=args.SEED,
                                                         shuffle=True
                                                         )
+    
+    X_train.columns = [str(i) for i in range(len(X_train.columns))]
+    X_valid.columns = [str(i) for i in range(len(X_valid.columns))]
     
     data['X_train'], data['X_valid'], data['y_train'], data['y_valid'] = X_train, X_valid, y_train, y_valid
     print(data['X_train'].head(5))
