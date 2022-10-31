@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from ._models import _NeuralCollaborativeFiltering, _WideAndDeepModel, _DeepCrossNetworkModel
-from ._models import rmse, RMSELoss
+from ._models import rmse, RMSELoss, SmoothL1Loss
 from src.utils import EarlyStopping
 
 class NeuralCollaborativeFiltering:
@@ -15,7 +15,17 @@ class NeuralCollaborativeFiltering:
     def __init__(self, args, data):
         super().__init__()
         self.args = args
-        self.criterion = RMSELoss()
+        if args.ZEROONE:
+            print('zeroone')
+        else:
+            print('no zeroone')
+
+        if args.LOSS == 'sl1':
+            print('with sl1 loss beta', args.BETA)
+            self.criterion = SmoothL1Loss(self.args.BETA)
+        elif args.LOSS == 'rmse':
+            print('with rmse loss')
+            self.criterion = RMSELoss()
 
         self.train_dataloader = data['train_dataloader']
         self.valid_dataloader = data['valid_dataloader']
@@ -74,7 +84,7 @@ class NeuralCollaborativeFiltering:
             'checkpoint.pt')
         self.model.load_state_dict(torch.load(ppath))
         rmse_score = self.predict_train()
-        print('epoch:', epoch, 'validation: rmse:', rmse_score)
+        print(f'u{formatted_user_num}_b{formatted_book_num}, epoch:', epoch, 'validation: rmse:', rmse_score, flush=True)
         return rmse_score
 
     def predict_train(self):
@@ -86,7 +96,11 @@ class NeuralCollaborativeFiltering:
                 y = self.model(fields)
                 targets.extend(target.tolist())
                 predicts.extend(y.tolist())
-        return rmse(targets, predicts)
+
+        if self.args.ZEROONE:
+            return rmse([t * 10.0 for t in targets], [p * 10.0 for p in predicts])
+        else:
+            return rmse(targets, predicts)
 
 
     def predict(self, dataloader):
@@ -173,7 +187,10 @@ class WideAndDeepModel:
                 y = self.model(fields)
                 targets.extend(target.tolist())
                 predicts.extend(y.tolist())
-        return rmse(targets, predicts)
+        if self.args.ZEROONE:
+            return rmse([t * 10.0 for t in targets], [p * 10.0 for p in predicts])
+        else:
+            return rmse(targets, predicts)
 
 
     def predict(self, dataloader):
@@ -262,7 +279,10 @@ class DeepCrossNetworkModel:
                 y = self.model(fields)
                 targets.extend(target.tolist())
                 predicts.extend(y.tolist())
-        return rmse(targets, predicts)
+        if self.args.ZEROONE:
+            return rmse([t * 10.0 for t in targets], [p * 10.0 for p in predicts])
+        else:
+            return rmse(targets, predicts)
 
 
     def predict(self, dataloader):
