@@ -72,6 +72,7 @@ class FactorizationMachineModel:
         rmse_score = self.predict_train()
         print(f"u{formatted_user_num}_b{formatted_book_num}, validation rmse: {rmse_score}")
         print('\n')
+        return rmse_score
 
 
 
@@ -158,6 +159,7 @@ class FieldAwareFactorizationMachineModel:
         rmse_score = self.predict_train()
         print(f"u{formatted_user_num}_b{formatted_book_num}, validation rmse: {rmse_score}")
         print('\n')
+        return rmse_score
 
 
     def predict_train(self):

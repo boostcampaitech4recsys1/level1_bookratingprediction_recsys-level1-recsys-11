@@ -8,6 +8,7 @@ import torch.optim as optim
 
 from ._models import _NeuralCollaborativeFiltering, _WideAndDeepModel, _DeepCrossNetworkModel
 from ._models import rmse, RMSELoss
+from src.utils import EarlyStopping
 
 class NeuralCollaborativeFiltering:
 
@@ -74,7 +75,7 @@ class NeuralCollaborativeFiltering:
         self.model.load_state_dict(torch.load(ppath))
         rmse_score = self.predict_train()
         print('epoch:', epoch, 'validation: rmse:', rmse_score)
-
+        return rmse_score
 
     def predict_train(self):
         self.model.eval()
@@ -161,7 +162,7 @@ class WideAndDeepModel:
         self.model.load_state_dict(torch.load(ppath))
         rmse_score = self.predict_train()
         print('epoch:', epoch, 'validation: rmse:', rmse_score)
-
+        return rmse_score
 
     def predict_train(self):
         self.model.eval()
@@ -249,6 +250,7 @@ class DeepCrossNetworkModel:
         self.model.load_state_dict(torch.load(ppath))
         rmse_score = self.predict_train()
         print('epoch:', epoch, 'validation: rmse:', rmse_score)
+        return rmse_score
 
 
     def predict_train(self):
