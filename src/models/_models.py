@@ -170,7 +170,7 @@ class _NeuralCollaborativeFiltering(nn.Module):
         self.embedding = FeaturesEmbedding(field_dims, embed_dim)
         self.embed_output_dim = len(field_dims) * embed_dim
         self.mlp = MultiLayerPerceptron(self.embed_output_dim, mlp_dims, dropout, output_layer=False)
-        self.fc = torch.nn.Linear(mlp_dims[-1] + embed_dim, 1)
+        self.fc = torch.nn.Linear(mlp_dims[-1] + 2 * embed_dim, 1)
 
     def forward(self, x):
         """
@@ -179,9 +179,12 @@ class _NeuralCollaborativeFiltering(nn.Module):
         x = self.embedding(x)
         user_x = x[:, self.user_field_idx].squeeze(1)
         item_x = x[:, self.item_field_idx].squeeze(1)
+        context_x = x[:, 2:, :]
+        context_x = torch.sum(context_x, dim = 1)
         gmf = user_x * item_x
         x = self.mlp(x.view(-1, self.embed_output_dim))
-        x = torch.cat([gmf, x], dim=1)
+        x = torch.cat([gmf, x, context_x], dim=1)
+
         x = self.fc(x).squeeze(1)
         return x
 
@@ -189,17 +192,27 @@ class _WideAndDeepModel(nn.Module):
 
     def __init__(self, field_dims: np.ndarray, embed_dim: int, mlp_dims: tuple, dropout: float):
         super().__init__()
-        self.linear = FeaturesLinear(field_dims)
-        self.embedding = FeaturesEmbedding(field_dims, embed_dim)
-        self.embed_output_dim = len(field_dims) * embed_dim
+        self.linear = FeaturesLinear(field_dims[:2])
+        self.embedding = FeaturesEmbedding(field_dims[:2], embed_dim)
+        self.context_embedding = FeaturesEmbedding(field_dims[2:], embed_dim)
+        self.embed_output_dim = len(field_dims[:2]) * embed_dim
         self.mlp = MultiLayerPerceptron(self.embed_output_dim, mlp_dims, dropout)
+        self.context_embed_output_dim = len(field_dims[2:]) * embed_dim
+        self.context_mlp = MultiLayerPerceptron(self.context_embed_output_dim, mlp_dims, dropout)
 
     def forward(self, x: torch.Tensor):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
-        embed_x = self.embedding(x)
-        x = self.linear(x) + self.mlp(embed_x.view(-1, self.embed_output_dim))
+        # print(f"[WDN MODEL DATA INPUT SHAPE]\n {x.shape}")
+        # embed_x = self.embedding(x)
+        embed_x = self.embedding(x[:,:2])
+        context_embed_x = self.context_embedding(x[:,2:])
+        x = x[:, :2]
+        linear_out = self.linear(x)
+        mlp_out = self.mlp(embed_x.view(-1, self.embed_output_dim))
+        context_mlp_out = self.context_mlp(context_embed_x.view(-1, self.context_embed_output_dim))
+        x = linear_out + mlp_out + context_mlp_out
         return x.squeeze(1)
 
 class CrossNetwork(nn.Module):
@@ -233,18 +246,24 @@ class _DeepCrossNetworkModel(nn.Module):
 
     def __init__(self, field_dims: np.ndarray, embed_dim: int, num_layers: int, mlp_dims: tuple, dropout: float):
         super().__init__()
-        self.embedding = FeaturesEmbedding(field_dims, embed_dim)
-        self.embed_output_dim = len(field_dims) * embed_dim
+        self.embedding = FeaturesEmbedding(field_dims[:2], embed_dim)
+        self.embed_output_dim = len(field_dims[:2]) * embed_dim
         self.cn = CrossNetwork(self.embed_output_dim, num_layers)
         self.mlp = MultiLayerPerceptron(self.embed_output_dim, mlp_dims, dropout, output_layer=False)
-        self.cd_linear = nn.Linear(mlp_dims[0], 1, bias=False)
+        self.cd_linear = nn.Linear(embed_dim * 2, 1, bias=False)
+        
+        self.context_embedding = FeaturesEmbedding(field_dims[2:], embed_dim)
+        
 
     def forward(self, x: torch.Tensor):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
-        embed_x = self.embedding(x).view(-1, self.embed_output_dim)
+        embed_x = self.embedding(x[:,:2]).view(-1, self.embed_output_dim)
+        context_embed_x = self.context_embedding(x[:,2:])
+        context_embed_x = torch.sum(context_embed_x, dim = 1)
         x_l1 = self.cn(embed_x)
         x_out = self.mlp(x_l1)
-        p = self.cd_linear(x_out)
+        x_concat = torch.cat([x_out, context_embed_x], dim = 1)
+        p = self.cd_linear(x_concat)
         return p.squeeze(1)

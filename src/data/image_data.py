@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torch.autograd import Variable
 from tqdm import tqdm
+from src.utils import EarlyStopping
 
 class Image_Dataset(Dataset):
     def __init__(self, user_isbn_vector, img_vector, label):
@@ -131,9 +132,9 @@ def image_data_loader(args, data):
                                 data['img_test']['rating'].values
                                 )
 
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.BATCH_SIZE, num_workers=0, shuffle=True)
-    valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, num_workers=0, shuffle=True)
-    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.BATCH_SIZE, num_workers=0, shuffle=False)
+    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=True, num_workers = 4)
+    valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=True, num_workers = 4)
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.BATCH_SIZE,  shuffle=False, num_workers = 4)
     data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
 
     return data
