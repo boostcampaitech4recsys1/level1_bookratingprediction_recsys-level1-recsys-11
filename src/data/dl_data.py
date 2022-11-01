@@ -170,8 +170,18 @@ def dl_data_split(args, data):
     return data
 
 def dl_data_loader(args, data):
-    train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.LongTensor(data['y_train'].values))
-    valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.LongTensor(data['y_valid'].values))
+#     print(torch.LongTensor(data['X_train'].values))
+#     print('e')
+#     print(torch.FloatTensor(data['y_train'].values) / 10.0)
+#     raise 'ok'
+
+    if args.ZEROONE:
+        train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.FloatTensor(data['y_train'].values) / 10.0)
+        valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.FloatTensor(data['y_valid'].values) / 10.0)
+    else:
+        train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.FloatTensor(data['y_train'].values))
+        valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.FloatTensor(data['y_valid'].values))
+    
     test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
