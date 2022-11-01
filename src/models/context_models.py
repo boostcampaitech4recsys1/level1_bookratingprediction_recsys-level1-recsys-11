@@ -85,7 +85,10 @@ class FactorizationMachineModel:
                 y = self.model(fields)
                 targets.extend(target.tolist())
                 predicts.extend(y.tolist())
-        return rmse(targets, predicts)
+        if self.args.ZEROONE:
+            return rmse([t * 10.0 for t in targets], [p * 10.0 for p in predicts])
+        else:
+            return rmse(targets, predicts)
 
 
     def predict(self, dataloader):
@@ -171,7 +174,10 @@ class FieldAwareFactorizationMachineModel:
                 y = self.model(fields)
                 targets.extend(target.tolist())
                 predicts.extend(y.tolist())
-        return rmse(targets, predicts)
+        if self.args.ZEROONE:
+            return rmse([t * 10.0 for t in targets], [p * 10.0 for p in predicts])
+        else:
+            return rmse(targets, predicts)
 
 
     def predict(self, dataloader):

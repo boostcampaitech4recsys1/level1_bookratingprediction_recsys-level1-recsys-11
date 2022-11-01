@@ -1,3 +1,4 @@
+from email.policy import default
 import time
 import argparse
 import pandas as pd
@@ -85,6 +86,15 @@ def main(args):
             pass
 
         ######################## TRAIN
+        if args.ZEROONE:
+            print('zeroone')
+        else:
+            print('no zeroone')
+
+        if args.LOSS == 'sl1':
+            print('with sl1 loss beta', args.BETA)
+        elif args.LOSS == 'rmse':
+            print('with rmse loss')
         print(f'--------------- {args.MODEL} TRAINING ---------------')
         model.train(fold_num = 0)
 
@@ -103,7 +113,10 @@ def main(args):
         print(f'--------------- SAVE {args.MODEL} PREDICT ---------------')
         submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
         if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
-            submission['rating'] = predicts
+            if args.ZEROONE: # 0. ~ 1 스케일링 시
+                submission['rating'] = [p * 10 for p in predicts]
+            else:
+                submission['rating'] = [p for p in predicts]
         else:
             pass
 
@@ -112,6 +125,11 @@ def main(args):
         length = len(data['test'])
         kfold_predicts = np.zeros((args.N_SPLITS, length))
         rmse_array = np.zeros(args.N_SPLITS)
+
+        if args.LOSS == 'sl1':
+            print('with sl1 loss beta', args.BETA)
+        elif args.LOSS == 'rmse':
+            print('with rmse loss')
 
         if args.MODEL in ('FM', 'FFM', 'XGB', 'LGBM', 'CATB'):
             for idx, (train_index, valid_index) in enumerate(skf.split(
@@ -146,12 +164,19 @@ def main(args):
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
                 kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
             
+            
+            
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
             predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            # 평균 내기 전에 복구할까 평균 내고 복구할까? 일단 평균 내고 복구한다.
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             print(f"[5-FOLD VALIDATION MEAN RMSE SCORE]: {rmse_array.mean()}")
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN'):
-                submission['rating'] = predicts
+                if args.ZEROONE: # 0. ~ 1 스케일링 시
+                    submission['rating'] = submission['rating'] = [p * 10 for p in predicts]
+                else:
+                    submission['rating'] = [p for p in predicts]
+                # submission['rating'] = predicts
             else:
                 pass
         
@@ -187,7 +212,10 @@ def main(args):
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             print(f"[5-FOLD VALIDATION MEAN RMSE SCORE]: {rmse_array.mean()}")
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
-                submission['rating'] = predicts
+                if args.ZEROONE: # 0. ~ 1 스케일링 시
+                    submission['rating'] = [p * 10 for p in predicts]
+                else:
+                    submission['rating'] = [p for p in predicts]
             else:
                 pass
         
@@ -251,11 +279,22 @@ def main(args):
 
     now = time.localtime()
     now_date = time.strftime('%Y%m%d', now)
-    now_hour = time.strftime('%X', now)
-    save_time = now_date + '_' + now_hour.replace(':', '')
-    print(f"[SUBMISSION NAME] {save_time}_{args.MODEL} @@@@")
-    submission.to_csv('/opt/ml/data/submit/{}_{}.csv'.format(save_time, args.MODEL), index=False)
+    now_hour = int(time.strftime('%X', now).replace(':', '')) + 90000
+    if now_hour >= 240000:
+        now_hour -= 240000
+        if len(str(now_hour)) <= 5:
+            n = 6 - len(str(now_hour))
+            now_hour = '0'*n + str(now_hour)
+    else:
+        now_hour = str(now_hour)
+    save_time = now_date + '_' + now_hour[:4]
     
+    print(f"[SUBMISSION NAME] {save_time}_{args.MODEL} @@@@")
+    if args.ROUND: # 라운드 된 것 안된 것 둘다 저장하기.
+        submission_r = submission.copy()
+        submission_r['rating'] = submission_r['rating'].apply(np.round)
+        submission_r.to_csv('/opt/ml/data/submit/{}_{}_r.csv'.format(save_time, args.MODEL),index=False)
+    submission.to_csv('/opt/ml/data/submit/{}_{}.csv'.format(save_time, args.MODEL), index=False)
 
 
 
@@ -284,6 +323,14 @@ if __name__ == "__main__":
     arg('--LR', type=float, default=1e-4, help='Learning Rate를 조정할 수 있습니다.')
     arg('--WEIGHT_DECAY', type=float, default=1e-5, help='Adam optimizer에서 정규화에 사용하는 값을 조정할 수 있습니다.')
     arg('--PATIENCE', type = int, default = 3, help = 'Early Stop patience')
+    arg('--ZEROONE', type=bool, default=False, help = '0. ~ 1 스케일링 합니다.')
+    arg('--ROUND', type=bool, default=False, help = '점수 반올림 진행합니다.')
+
+
+    ############### Loss Func
+    arg('--LOSS', type=str, default='rmse', help='rmse, sl1, huber')
+    arg('--BETA', type=float, default=1.0, help='smooth l1, hubor 에서 베타, 델타 지정합니다.(0 ~ 1)')
+
 
     ############### GPU
     arg('--DEVICE', type=str, default='cuda', choices=['cuda', 'cpu'], help='학습에 사용할 Device를 조정할 수 있습니다.')

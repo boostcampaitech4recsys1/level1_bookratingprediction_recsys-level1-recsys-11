@@ -19,6 +19,17 @@ class RMSELoss(torch.nn.Module):
         return loss
 
 
+class SmoothL1Loss(torch.nn.Module):
+    def __init__(self, beta):
+        self.beta = beta
+        super(SmoothL1Loss,self).__init__()
+
+    def forward(self, x, y):
+        criterion = nn.SmoothL1Loss(beta=self.beta)
+        loss = criterion(x, y)
+        return loss
+
+
 class FactorizationMachine(nn.Module):
 
     def __init__(self, reduce_sum:bool=True):
@@ -90,7 +101,7 @@ class _FactorizationMachineModel(nn.Module):
         self.embedding = FeaturesEmbedding(field_dims, embed_dim)
         self.linear = FeaturesLinear(field_dims)
         self.fm = FactorizationMachine(reduce_sum=True)
-
+        
     def forward(self, x: torch.Tensor):
         """
         :param x: Long tensor of size ``(batch_size, num_fields)``

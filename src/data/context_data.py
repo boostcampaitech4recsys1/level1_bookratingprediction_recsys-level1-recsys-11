@@ -161,6 +161,8 @@ def context_data_split(args, data):
         re_concat = re_concat.drop(['isbn', 'user_id'], axis=1)
         re_concat = pd.get_dummies(re_concat, columns=re_concat.drop('rating', axis=1).columns)
         
+        print(re_concat.columns)
+
         data['train'] = re_concat[re_concat['rating'].notnull()]
         data['test'] = re_concat[re_concat['rating'].isna()].drop('rating', axis=1)
 
@@ -173,6 +175,9 @@ def context_data_split(args, data):
                                                         shuffle=True
                                                         )
     
+    X_train.columns = [str(i) for i in range(len(X_train.columns))]
+    X_valid.columns = [str(i) for i in range(len(X_valid.columns))]
+    
     data['X_train'], data['X_valid'], data['y_train'], data['y_valid'] = X_train, X_valid, y_train, y_valid
     print(data['X_train'].head(5))
     return data
@@ -184,15 +189,18 @@ def context_data_loader(args, data):
             (data['X_train'], data['y_train']), (data['X_valid'], data['y_valid']), (data['test'], None)
     
     else:
-        train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.LongTensor(data['y_train'].values))
-        valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.LongTensor(data['y_valid'].values))
-        test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
-
+        if args.ZEROONE:
+            train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.FloatTensor(data['y_train'].values) / 10.0)
+            valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.FloatTensor(data['y_valid'].values) / 10.0)
+        else:
+            train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.FloatTensor(data['y_train'].values))
+            valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.FloatTensor(data['y_valid'].values))
+    test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
     
-        train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-        valid_dataloader = DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-        test_dataloader = DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False, num_workers = 4)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    test_dataloader = DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False, num_workers = 4)
 
-        data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
+    data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
 
     return data

@@ -13,9 +13,6 @@ test_ratings = pd.read_csv(path + 'test_ratings.csv')
 
 
 def main():
-    books.loc[books['language'] != 'en', 'summary'] = 'None'
-    books.loc[books['language'] != 'en', 'book_title'] = 'None'
-    # print(books[books.loc])
     # language (버리는 행이라 -1) => 경우의 수 : 1
     books.rename(columns={'language' : 'language1'}, inplace=True)
     books['language1'] = -1 
@@ -130,8 +127,6 @@ def main():
                      f'publisher{j+1}', 'img_url', 'language1', f'category{k+1}', 'summary1', 'img_path']]
                     file.columns = [['isbn', 'book_title', 'book_author', 'year_of_publication',
                      'publisher', 'img_url', 'language', 'category', 'summary', 'img_path']]
-
-
                     file.to_csv(f'../../data/books/b{formatted_num}.csv', index=False)
                     num += 1
 
