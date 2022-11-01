@@ -279,8 +279,16 @@ def main(args):
 
     now = time.localtime()
     now_date = time.strftime('%Y%m%d', now)
-    now_hour = time.strftime('%X', now)
-    save_time = now_date + '_' + now_hour.replace(':', '')
+    now_hour = int(time.strftime('%X', now).replace(':', '')) + 90000
+    if now_hour >= 240000:
+        now_hour -= 240000
+        if len(str(now_hour)) <= 5:
+            n = 6 - len(str(now_hour))
+            now_hour = '0'*n + str(now_hour)
+    else:
+        now_hour = str(now_hour)
+    save_time = now_date + '_' + now_hour[:4]
+    
     print(f"[SUBMISSION NAME] {save_time}_{args.MODEL} @@@@")
     if args.ROUND: # 라운드 된 것 안된 것 둘다 저장하기.
         submission_r = submission.copy()
