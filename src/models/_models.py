@@ -19,6 +19,17 @@ class RMSELoss(torch.nn.Module):
         return loss
 
 
+class SmoothL1Loss(torch.nn.Module):
+    def __init__(self, beta):
+        self.beta = beta
+        super(SmoothL1Loss,self).__init__()
+
+    def forward(self, x, y):
+        criterion = nn.SmoothL1Loss(beta=self.beta)
+        loss = criterion(x, y)
+        return loss
+
+
 class FactorizationMachine(nn.Module):
 
     def __init__(self, reduce_sum:bool=True):

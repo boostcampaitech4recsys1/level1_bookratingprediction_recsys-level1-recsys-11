@@ -184,15 +184,18 @@ def context_data_loader(args, data):
             (data['X_train'], data['y_train']), (data['X_valid'], data['y_valid']), (data['test'], None)
     
     else:
-        train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.LongTensor(data['y_train'].values))
-        valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.LongTensor(data['y_valid'].values))
-        test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
-
+        if args.ZEROONE:
+            train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.FloatTensor(data['y_train'].values) / 10.0)
+            valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.FloatTensor(data['y_valid'].values) / 10.0)
+        else:
+            train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.FloatTensor(data['y_train'].values))
+            valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.FloatTensor(data['y_valid'].values))
+    test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
     
-        train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-        valid_dataloader = DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-        test_dataloader = DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False, num_workers = 4)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    test_dataloader = DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False, num_workers = 4)
 
-        data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
+    data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
 
     return data
