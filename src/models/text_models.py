@@ -70,7 +70,7 @@ class DeepCoNN:
         self.args = args
         self.device = args.DEVICE
         self.model = _DeepCoNN(
-                                np.array([len(data['user2idx']), len(data['isbn2idx'])], dtype=np.uint32),
+                                data['field_dims'],
                                 args.DEEPCONN_EMBED_DIM,
                                 args.DEEPCONN_WORD_DIM,
                                 args.DEEPCONN_OUT_DIM,
