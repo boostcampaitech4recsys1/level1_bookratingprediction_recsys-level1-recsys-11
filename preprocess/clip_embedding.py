@@ -57,14 +57,14 @@ def text_to_vector(text, model, device):
     
     
             
-def main():
+def main(mode):
     root_dir = "/opt/ml/data/books"
     device = "cuda:0"
     print("[LOAD CLIP]")
     model, preprocess = clip.load("ViT-B/32", device = device)
 
     book_df = pd.read_csv(os.path.join(root_dir, 'b01.csv'))
-    rating_df = pd.read_csv(os.path.join("/opt/ml/data/ratings", 'train_ratings.csv'))
+    rating_df = pd.read_csv(os.path.join("/opt/ml/data/ratings", f'{mode}_ratings.csv'))
     book_df['summary'] = book_df['summary'].apply(lambda x:text_preprocessing(x))
     book_df['book_title'] = book_df['book_title'].apply(lambda x: text_preprocessing(x))
     df_fe = pd.merge(rating_df, book_df[['isbn', 'book_title', 'summary']], how = 'inner', on = 'isbn')
@@ -74,7 +74,7 @@ def main():
     print(df_fe.sample(5).columns)
 
     print(f"[USER SUMMARY MERGE VECTOR]")
-    ppath = "/opt/ml/data/user_summary_merge_vector.pkl"
+    ppath = f"/opt/ml/data/{mode}_user_summary_merge_vector.pkl"
     if os.path.exists(ppath):
         with open(ppath, 'rb') as f:
             user_summary_merge_vector = pickle.load(f)
@@ -85,13 +85,13 @@ def main():
             user_summary_merge_vector.append(text_to_vector(summary_merge(df_fe, x, 1), model, device))
         # user_review_text_df = pd.DataFrame(df_fe['user_id'].unique(), columns=['user_id'])
 
-        with open("ppath", 'wb') as f:
+        with open(ppath, 'wb') as f:
             pickle.dump(user_summary_merge_vector, f)
     user_review_text_df = pd.DataFrame(df_fe['user_id'].unique(), columns=['user_id'])
     # print(type(user_review_text_df), user_review_text_df.columns)
 
     print(f"[BOOK TITLE VECTOR]")
-    ppath = "/opt/ml/data/book_title_vector.pkl"
+    ppath = f"/opt/ml/data/{mode}_book_title_vector.pkl"
     if os.path.exists(ppath):
         with open(ppath, 'rb') as f:
             book_title_vector = pickle.load(f)
@@ -99,12 +99,12 @@ def main():
         book_title_vector = []
         for x in tqdm(book_df['book_title'].tolist()):
             book_title_vector.append(text_to_vector(x, model, device))
-        with open("/opt/ml/data/book_title_vector.pkl", 'wb') as f:
+        with open(ppath, 'wb') as f:
             pickle.dump(book_title_vector, f)
 
 
     print("[BOOK SUMMARY VECTOR]")
-    ppath = "/opt/ml/data/item_summary_vector.pkl"
+    ppath = f"/opt/ml/data/{mode}_item_summary_vector.pkl"
     if os.path.exists(ppath):
         with open(ppath, 'rb') as f:
             item_summary_vector = pickle.load(f)
@@ -112,7 +112,7 @@ def main():
         item_summary_vector = []
         for x in tqdm(book_df['summary'].tolist()):
             item_summary_vector.append(text_to_vector(x, model, device))
-        with open("/opt/ml/data/item_summary_vector.pkl", 'wb') as f:
+        with open(ppath, 'wb') as f:
             pickle.dump(item_summary_vector, f)
 
     # print(user_review_text_df.shape, user_review_text_df.columns)
@@ -127,8 +127,10 @@ def main():
 
     print("[BOOK IMAGE VECTOR]")
     book_df = embed_image(df_fe_join, model, preprocess, device)
-    book_df.to_csv(f'/opt/ml/data/embedding.csv', index=False)
+    book_df.to_csv(f'/opt/ml/data/{mode}_embedding.csv', index=False)
 
 
 if __name__ == '__main__':
-    main()
+    for mode in ['train', 'test']:
+        main(mode)
+    # main('test')
