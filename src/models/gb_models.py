@@ -7,7 +7,7 @@ import os
 from scipy.sparse import csr_matrix, linalg
 from xgboost import XGBRegressor, XGBClassifier
 from lightgbm import LGBMRegressor, LGBMClassifier
-# from catboost import CatBoostRegressor, CatBoostClassifier, Pool
+from catboost import CatBoostRegressor, CatBoostClassifier, Pool
 from sklearn.metrics import accuracy_score
 
 import warnings
