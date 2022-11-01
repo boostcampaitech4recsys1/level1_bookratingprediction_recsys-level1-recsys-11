@@ -74,41 +74,60 @@ def main():
     print(df_fe.sample(5).columns)
 
     print(f"[USER SUMMARY MERGE VECTOR]")
-    user_summary_merge_vector = []
-    for x in tqdm(df_fe['user_id'].unique()):
-        user_summary_merge_vector.append(text_to_vector(summary_merge(df_fe, x, 1), model, device))
+    ppath = "/opt/ml/data/user_summary_merge_vector.pkl"
+    if os.path.exists(ppath):
+        with open(ppath, 'rb') as f:
+            user_summary_merge_vector = pickle.load(f)
+        # user_review_text_df = pd.DataFrame(df_fe['user_id'].unique(), columns=['user_id'])
+    else:
+        user_summary_merge_vector = []
+        for x in tqdm(df_fe['user_id'].unique()):
+            user_summary_merge_vector.append(text_to_vector(summary_merge(df_fe, x, 1), model, device))
+        # user_review_text_df = pd.DataFrame(df_fe['user_id'].unique(), columns=['user_id'])
+
+        with open("ppath", 'wb') as f:
+            pickle.dump(user_summary_merge_vector, f)
     user_review_text_df = pd.DataFrame(df_fe['user_id'].unique(), columns=['user_id'])
-
-    with open("/opt/ml/data/user_summary_merge_vector.pkl", 'wb') as f:
-        pickle.dump(user_review_merge_vector, f)
-
+    # print(type(user_review_text_df), user_review_text_df.columns)
 
     print(f"[BOOK TITLE VECTOR]")
-    book_title_vector = []
-    for x in tqdm(book_df['book_title'].tolist()):
-        book_title_vector.append(text_to_vector(x, model, device))
-    with open("/opt/ml/data/book_title_vector.pkl", 'wb') as f:
-        pickle.dump(book_title_vector, f)
+    ppath = "/opt/ml/data/book_title_vector.pkl"
+    if os.path.exists(ppath):
+        with open(ppath, 'rb') as f:
+            book_title_vector = pickle.load(f)
+    else:
+        book_title_vector = []
+        for x in tqdm(book_df['book_title'].tolist()):
+            book_title_vector.append(text_to_vector(x, model, device))
+        with open("/opt/ml/data/book_title_vector.pkl", 'wb') as f:
+            pickle.dump(book_title_vector, f)
+
 
     print("[BOOK SUMMARY VECTOR]")
-    item_summary_vector = []
-    for x in tqdm(book_df['summary'].tolist()):
-        item_summary_vector.append(text_to_vector(x, model, device))
-    with open("/opt/ml/data/item_summary_vector.pkl", 'wb') as f:
-        pickle.dump(item_summary_vector, f)
+    ppath = "/opt/ml/data/item_summary_vector.pkl"
+    if os.path.exists(ppath):
+        with open(ppath, 'rb') as f:
+            item_summary_vector = pickle.load(f)
+    else:
+        item_summary_vector = []
+        for x in tqdm(book_df['summary'].tolist()):
+            item_summary_vector.append(text_to_vector(x, model, device))
+        with open("/opt/ml/data/item_summary_vector.pkl", 'wb') as f:
+            pickle.dump(item_summary_vector, f)
 
+    # print(user_review_text_df.shape, user_review_text_df.columns)
     user_review_text_df['user_summary_merge_vector'] = user_summary_merge_vector
     book_df['book_title_vector'] = book_title_vector
     book_df['item_summary_vector'] = item_summary_vector
 
 
     df_fe_join = pd.merge(df_fe, user_review_text_df, on='user_id', how='left')
-    df_fe_join = pd.merge(df_fe_join, book_df[['isbn', 'item_summary_vector']], on='isbn', how='left')
-    print(df_fe_join.sample(5))
+    df_fe_join = pd.merge(df_fe_join, book_df[['isbn', 'img_path', 'book_title_vector', 'item_summary_vector']], on='isbn', how='left')
+    print(df_fe_join.sample(5).columns)
 
     print("[BOOK IMAGE VECTOR]")
     book_df = embed_image(df_fe_join, model, preprocess, device)
-    book_df.to_csv(f'opt/ml/data/embedding.csv', index=False)
+    book_df.to_csv(f'/opt/ml/data/embedding.csv', index=False)
 
 
 if __name__ == '__main__':
