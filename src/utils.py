@@ -48,10 +48,11 @@ class EarlyStopping:
             )
         formatted_user_num = format(self.args.USER_NUM, '02')
         formatted_book_num = format(self.args.BOOK_NUM, '02')
+
         ppath = Path(
             os.path.join(
                 self.args.SAVE_PATH,
-                self.args.MODEL,
+                self.args.CF_MODEL, '+', self.args.RR_MODEL,
                 f"u{formatted_user_num}_b{formatted_book_num}",
                 f"fold{self.fold_num}",
                 'checkpoint.pt'

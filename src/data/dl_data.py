@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader, Dataset
 from src.utils import EarlyStopping
-
+from copy import deepcopy
 
 def age_map(x: int) -> int:
     x = int(x)
@@ -166,28 +166,77 @@ def dl_data_split(args, data):
                                                         shuffle=True
                                                         )
     data['X_train'], data['X_valid'], data['y_train'], data['y_valid'] = X_train, X_valid, y_train, y_valid
-    print(f"X_train: \n {data['X_train'].sample(5)}")
+    print(f"X_train: \n {data['X_train'].sample(10)}, len: {len(data['X_train'])}")
     return data
 
-def dl_data_loader(args, data):
-#     print(torch.LongTensor(data['X_train'].values))
-#     print('e')
-#     print(torch.FloatTensor(data['y_train'].values) / 10.0)
-#     raise 'ok'
 
-    if args.ZEROONE:
-        train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.FloatTensor(data['y_train'].values) / 10.0)
-        valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.FloatTensor(data['y_valid'].values) / 10.0)
-    else:
-        train_dataset = TensorDataset(torch.LongTensor(data['X_train'].values), torch.FloatTensor(data['y_train'].values))
-        valid_dataset = TensorDataset(torch.LongTensor(data['X_valid'].values), torch.FloatTensor(data['y_valid'].values))
+def dl_data_loader(args, data, cf=False, range_str='09', last_valid=False, is_boosting=False):
+    new_data = deepcopy(data) 
+
+    if last_valid:
+        # last_valid 는 전체를 그냥 통과한다.
+        range_str='09'
     
+    if cf:        
+        def convert_rating_to_label(x):
+            for i, r in enumerate(data['ranges']):
+                if int(r[0])+1 <= x <= int(r[1])+1:
+                    return i
+
+        # 클래시피케이션이면 라벨로 변경한다.
+        #print(new_data['y_train'])
+        new_data['y_train'] = new_data['y_train'].apply(convert_rating_to_label)
+        new_data['y_valid'] = new_data['y_valid'].apply(convert_rating_to_label)
+
+        train_dataset = TensorDataset(torch.LongTensor(new_data['X_train'].values), torch.LongTensor(new_data['y_train'].values))
+        valid_dataset = TensorDataset(torch.LongTensor(new_data['X_valid'].values), torch.LongTensor(new_data['y_valid'].values))
+    else:
+        # 리그레션이면 range_str에 따라 잘라서 전달한다.
+        live_indices_train =\
+            new_data['y_train'][(new_data['y_train'] >= int(range_str[0])+1) & (new_data['y_train'] <= int(range_str[1])+1)].index
+        
+        live_indices_valid =\
+            new_data['y_valid'][(new_data['y_valid'] >= int(range_str[0])+1) & (new_data['y_valid'] <= int(range_str[1])+1)].index
+
+        
+        new_data['X_train'] = new_data['X_train'].loc[live_indices_train]
+        new_data['y_train'] = new_data['y_train'].loc[live_indices_train]
+
+        new_data['X_valid'] = new_data['X_valid'].loc[live_indices_valid]
+        new_data['y_valid'] = new_data['y_valid'].loc[live_indices_valid]
+
+        # print(new_data['X_train'])
+        # print(new_data['y_train'])
+
+        if args.ZEROONE:
+            new_data['y_train'] = new_data['y_train'].astype(np.float64) / 10.0
+            new_data['y_valid'] = new_data['y_valid'].astype(np.float64) / 10.0
+        
+        if args.RR_MODEL in ('XGB', 'LGBM', 'CATB'):
+            new_data['train_dataloader'], new_data['valid_dataloader'], new_data['test_dataloader'] = \
+                (new_data['X_train'], new_data['y_train']), (new_data['X_valid'], new_data['y_valid']), (new_data['test'], None)
+
+        train_dataset = TensorDataset(torch.LongTensor(new_data['X_train'].values), torch.FloatTensor(new_data['y_train'].values))
+        valid_dataset = TensorDataset(torch.LongTensor(new_data['X_valid'].values), torch.FloatTensor(new_data['y_valid'].values))
+        # print(new_data['y_valid'])
+
     test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
 
-    train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-    test_dataloader = DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False, num_workers = 4)
+    if cf:
+        train_dataloader = DataLoader(train_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+        valid_dataloader = DataLoader(valid_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=False, num_workers = 4)
 
-    data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
+    else:
+        train_dataloader = DataLoader(train_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+        valid_dataloader = DataLoader(valid_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+        test_dataloader = DataLoader(test_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=False, num_workers = 4)
 
-    return data
+    if is_boosting:
+        new_data['train_dataloader'], new_data['valid_dataloader'], new_data['test_dataloader'] = \
+            (new_data['X_train'], new_data['y_train']), (new_data['X_valid'], new_data['y_valid']), (new_data['test'], None)
+
+    else:
+        new_data['train_dataloader'], new_data['valid_dataloader'], new_data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
+
+    return new_data
