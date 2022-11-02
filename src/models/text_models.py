@@ -3,7 +3,7 @@ import numpy as np
 import tqdm
 import torch
 import torch.nn as nn
-from ._models import RMSELoss, FeaturesEmbedding, FactorizationMachine_v
+from ._models import rmse, RMSELoss, FeaturesEmbedding, FactorizationMachine_v
 from src.utils import EarlyStopping
 
 class CNN_1D(nn.Module):
@@ -70,7 +70,7 @@ class DeepCoNN:
         self.args = args
         self.device = args.DEVICE
         self.model = _DeepCoNN(
-                                np.array([len(data['user2idx']), len(data['isbn2idx'])], dtype=np.uint32),
+                                data['field_dims'],
                                 args.DEEPCONN_EMBED_DIM,
                                 args.DEEPCONN_WORD_DIM,
                                 args.DEEPCONN_OUT_DIM,
@@ -84,17 +84,19 @@ class DeepCoNN:
         self.criterion = RMSELoss()
         self.epochs = args.EPOCHS
         self.model_name = 'text_model'
+        self.log_interval = 100
 
 
     def train(self, fold_num):
+        early_stopping = EarlyStopping(args=self.args, fold_num = fold_num, verbose=True)
         minimum_loss = 999999999
         loss_list = []
-        tk0 = tqdm.tqdm(range(self.epochs), smoothing=0, mininterval=1.0)
-        for epoch in tk0:
+        for epoch in range(self.epochs):
             self.model.train()
             total_loss = 0
             n = 0
-            for i, data in enumerate(self.train_data_loader):
+            tk0 = tqdm.tqdm(self.train_data_loader, smoothing=0, mininterval=1.0)
+            for i, data in enumerate(tk0):
                 if len(data)==3:
                     fields, target = [data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
                 elif len(data)==4:
@@ -106,30 +108,44 @@ class DeepCoNN:
                 self.optimizer.step()
                 total_loss += loss.item()
                 n += 1
-            self.model.eval()
-            val_total_loss = 0
-            val_n = 0
-            for i, data in enumerate(self.valid_data_loader):
-                if len(data)==3:
-                    fields, target = [data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
-                elif len(data)==4:
-                    fields, target = [data['user_isbn_vector'].to(self.device), data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
-                y = self.model(fields)
-                loss = self.criterion(y, target.float())
-                self.model.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-                val_total_loss += loss.item()
-                val_n += 1
-            if minimum_loss > (val_total_loss/val_n):
-                minimum_loss = (val_total_loss/val_n)
-                if not os.path.exists('./models'):
-                    os.makedirs('./models')
-                torch.save(self.model.state_dict(), './models/{}.pt'.format(self.model_name))
-                loss_list.append([epoch, total_loss/n, val_total_loss/val_n, 'Model saved'])
-            else:
-                loss_list.append([epoch, total_loss/n, val_total_loss/val_n, 'None'])
-            tk0.set_postfix(train_loss=total_loss/n, valid_loss=val_total_loss/val_n)
+                if (i + 1) % self.log_interval == 0:
+                    tk0.set_postfix(loss=total_loss / self.log_interval)
+                    total_loss = 0
+            rmse_score = self.predict_train()
+            early_stopping(rmse_score, self.model)
+
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+
+        formatted_user_num = format(self.args.USER_NUM, '02')
+        formatted_book_num = format(self.args.BOOK_NUM, '02')
+        ppath = os.path.join(self.args.SAVE_PATH,
+            self.args.MODEL,
+            f"u{formatted_user_num}_b{formatted_book_num}",
+            f"fold{fold_num}",
+            'checkpoint.pt')
+        self.model.load_state_dict(torch.load(ppath))
+        rmse_score = self.predict_train()
+        print('epoch:', epoch, 'validation: rmse:', rmse_score)
+        return rmse_score
+
+
+
+    def predict_train(self):
+        self.model.eval()
+        targets, predicts = list(), list()
+        tk = tqdm.tqdm(self.valid_data_loader, smoothing=0, mininterval=1.0)
+        for i, data in enumerate(tk):
+            if len(data)==3:
+                fields, target = [data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
+            elif len(data)==4:
+                fields, target = [data['user_isbn_vector'].to(self.device), data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
+            y = self.model(fields)
+            targets.extend(target.float().tolist())
+            predicts.extend(y.tolist())
+        return rmse(targets, predicts)
+            
 
 
     def predict(self, test_data_loader):
