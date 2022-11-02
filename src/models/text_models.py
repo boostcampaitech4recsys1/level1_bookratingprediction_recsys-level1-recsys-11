@@ -47,16 +47,21 @@ class _DeepCoNN(nn.Module):
                              conv_1d_out_dim=conv_1d_out_dim,
                             )
         self.fm = FactorizationMachine_v(
-                                         input_dim=(conv_1d_out_dim * 2) + (embed_dim*len(field_dims)),
+                                         input_dim=(conv_1d_out_dim * 2) + (embed_dim*3),
                                          latent_dim=latent_dim,
                                          )
     def forward(self, x):
         user_isbn_vector, user_text_vector, item_text_vector = x[0], x[1], x[2]
         user_isbn_feature = self.embedding(user_isbn_vector)
+        context_feature = user_isbn_feature[:, 2:]
+        user_isbn_feature = user_isbn_feature[:, :2]
+        context_feature = torch.sum(context_feature, dim = 1)
+        # print(f"[USER ISBN FEATURE SHAPE]: {user_isbn_feature.shape}")
         user_text_feature = self.cnn_u(user_text_vector)
         item_text_feature = self.cnn_i(item_text_vector)
         feature_vector = torch.cat([
                                     user_isbn_feature.view(-1, user_isbn_feature.size(1) * user_isbn_feature.size(2)),
+                                    context_feature,
                                     user_text_feature,
                                     item_text_feature
                                     ], dim=1)
@@ -125,6 +130,7 @@ class DeepCoNN:
             f"u{formatted_user_num}_b{formatted_book_num}",
             f"fold{fold_num}",
             'checkpoint.pt')
+        print(f"[TRAIN CODE ppath]: {ppath}")
         self.model.load_state_dict(torch.load(ppath))
         rmse_score = self.predict_train()
         print('epoch:', epoch, 'validation: rmse:', rmse_score)
@@ -150,7 +156,7 @@ class DeepCoNN:
 
     def predict(self, test_data_loader):
         self.model.eval()
-        self.model.load_state_dict(torch.load('./models/{}.pt'.format(self.model_name)))
+        # self.model.load_state_dict(torch.load('./models/{}.pt'.format(self.model_name)))
         targets, predicts = list(), list()
         with torch.no_grad():
             for data in test_data_loader:

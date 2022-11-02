@@ -49,16 +49,27 @@ class EarlyStopping:
         formatted_user_num = format(self.args.USER_NUM, '02')
         formatted_book_num = format(self.args.BOOK_NUM, '02')
 
-        ppath = Path(
-            os.path.join(
-                self.args.SAVE_PATH,
-                self.args.CF_MODEL, '+', self.args.RR_MODEL,
-                f"u{formatted_user_num}_b{formatted_book_num}",
-                f"fold{self.fold_num}",
-                'checkpoint.pt'
+        if self.args.CF_MODEL == None:
+            ppath = Path(
+                os.path.join(
+                    self.args.SAVE_PATH,
+                    self.args.MODEL,
+                    f"u{formatted_user_num}_b{formatted_book_num}",
+                    f"fold{self.fold_num}",
+                    'checkpoint.pt'
+                )
             )
-        )
+            print(f"[earlystopping ppath]: {ppath}")
+        else:
+            ppath = Path(
+                os.path.join(
+                    self.args.SAVE_PATH,
+                    self.args.CF_MODEL, '+', self.args.RR_MODEL,
+                    f"u{formatted_user_num}_b{formatted_book_num}",
+                    f"fold{self.fold_num}",
+                    'checkpoint.pt'
+                )
+            )
         ppath.parent.mkdir(parents=True, exist_ok=True)
-
         torch.save(model.state_dict(), str(ppath))
         self.val_loss_min = val_loss

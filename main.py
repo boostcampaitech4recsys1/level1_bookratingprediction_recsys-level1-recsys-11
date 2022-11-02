@@ -309,6 +309,7 @@ if __name__ == "__main__":
     arg('--SAVE_PATH', type = str, default = '/opt/ml/weights/', help = "학습된 모델들이 저장되는 path입니다.")
     arg('--USER_NUM', type = int, help = "user data preprocessed number `1 ~ 9`")
     arg('--BOOK_NUM', type = int, help = "book data preprocessed number `1 ~ 24`")
+    arg('--CF_MODEL', default = None)
     arg('--MODEL', type=str, choices=['FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'],
                                 help='학습 및 예측할 모델을 선택할 수 있습니다.')
     arg('--DATA_SHUFFLE', type=bool, default=True, help='데이터 셔플 여부를 조정할 수 있습니다.')
