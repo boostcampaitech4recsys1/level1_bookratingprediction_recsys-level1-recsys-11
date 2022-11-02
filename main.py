@@ -249,12 +249,12 @@ def main(args):
         
         elif args.MODEL == 'DeepCoNN':
             for idx, (train_index, valid_index) in enumerate(skf.split(
-                                                data['text_train'][['user_id', 'isbn', 'user_summary_merge_vector', 'item_summary_vector']],
+                                                data['text_train'].drop(['rating'], axis=1),
                                                 data['text_train']['rating']
                                                 )):
-                data['X_train']= data['text_train'][['user_id', 'isbn', 'user_summary_merge_vector', 'item_summary_vector']].iloc[train_index]
+                data['X_train']= data['text_train'][data['columns'] + ['user_summary_merge_vector', 'item_summary_vector']].iloc[train_index]
                 data['y_train'] = data['text_train']['rating'].iloc[train_index]
-                data['X_valid']= data['text_train'][['user_id', 'isbn', 'user_summary_merge_vector', 'item_summary_vector']].iloc[valid_index]
+                data['X_valid']= data['text_train'][data['columns'] + ['user_summary_merge_vector', 'item_summary_vector']].iloc[valid_index]
                 data['y_valid'] = data['text_train']['rating'].iloc[valid_index]
                 data = text_data_loader(args, data)
 
@@ -367,7 +367,7 @@ if __name__ == "__main__":
     arg('--DEEPCONN_LATENT_DIM', type=int, default=10, help='DEEP_CONN에서 user/item/image에 대한 latent 차원을 조정할 수 있습니다.')
     arg('--DEEPCONN_CONV_1D_OUT_DIM', type=int, default=50, help='DEEP_CONN에서 1D conv의 출력 크기를 조정할 수 있습니다.')
     arg('--DEEPCONN_KERNEL_SIZE', type=int, default=3, help='DEEP_CONN에서 1D conv의 kernel 크기를 조정할 수 있습니다.')
-    arg('--DEEPCONN_WORD_DIM', type=int, default=768, help='DEEP_CONN에서 1D conv의 입력 크기를 조정할 수 있습니다.')
+    arg('--DEEPCONN_WORD_DIM', type=int, default=512, help='DEEP_CONN에서 1D conv의 입력 크기를 조정할 수 있습니다.')
     arg('--DEEPCONN_OUT_DIM', type=int, default=32, help='DEEP_CONN에서 1D conv의 출력 크기를 조정할 수 있습니다.')
 
 

@@ -16,14 +16,21 @@ def text_process(vector):
     
 
 def process2npy(save_dir, mode, df, case, column_name):
-    # df[column_name] = df[column_name].apply(text_process)
     print(f"[MODE: {mode}, COLUMN_NAME: {column_name}]")
-    process_list = df[column_name].tolist()
+    new_df = df[[case, column_name]].copy()
+    if case == 'user_id':
+        new_df= new_df.drop_duplicates(case).reset_index(drop=True)
+    else:
+        new_df= new_df.drop_duplicates().reset_index(drop=True)
+    process_list = new_df[column_name].tolist()
     result_list = []
     for item in tqdm(process_list):
         result_list.append(text_process(item))
-    df[f"new_{column_name}"] = result_list
-    result_df = df[[case, f"new_{column_name}"]]
+    
+    new_df[f"new_{column_name}"] = result_list
+    # result_df = pd.merge(new_df, df, on = case, how = 'left')
+    result_df = new_df.copy()
+
     vector = np.concatenate([
                         result_df[case].values.reshape(1, -1),
                         result_df[f"new_{column_name}"].values.reshape(1, -1)
@@ -48,5 +55,5 @@ def main(mode):
 
 
 if __name__ == '__main__':
-    for mode in ['test']:
+    for mode in ['train', 'test']:
         main(mode)

@@ -220,6 +220,8 @@ def text_data_load(args):
     text_train = text_train[columns + ['user_summary_merge_vector', 'item_summary_vector'] + ['rating']]
     text_test = text_test[columns + ['user_summary_merge_vector', 'item_summary_vector'] + ['rating']]
 
+    print(text_train.info(), '\n\n')
+    print(text_test.info())
     data = {
             'train':train,
             'test':test,
