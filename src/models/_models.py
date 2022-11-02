@@ -3,9 +3,18 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+
 def rmse(real: list, predict: list) -> float:
     pred = np.array(predict)
     return np.sqrt(np.mean((real-pred) ** 2))
+    
+def acc(real: list, predict: list) -> float:
+    return accuracy_score(real, predict)
+
+def confusion_mat(real: list, predict: list):
+    return confusion_matrix(real, predict, normalize='true')
 
 
 class RMSELoss(torch.nn.Module):
@@ -26,6 +35,17 @@ class SmoothL1Loss(torch.nn.Module):
 
     def forward(self, x, y):
         criterion = nn.SmoothL1Loss(beta=self.beta)
+        loss = criterion(x, y)
+        return loss
+
+
+class CrossEntropyLoss(torch.nn.Module):
+    def __init__(self, weight):
+        self.weight = weight
+        super(CrossEntropyLoss,self).__init__()
+
+    def forward(self, x, y):
+        criterion = nn.CrossEntropyLoss(weight=self.weight)
         loss = criterion(x, y)
         return loss
 
@@ -96,11 +116,17 @@ class FeaturesLinear(nn.Module):
 
 class _FactorizationMachineModel(nn.Module):
 
-    def __init__(self, field_dims: np.ndarray, embed_dim: int):
+    def __init__(self, field_dims: np.ndarray, embed_dim: int, last_dim=1):
         super().__init__()
         self.embedding = FeaturesEmbedding(field_dims, embed_dim)
         self.linear = FeaturesLinear(field_dims)
         self.fm = FactorizationMachine(reduce_sum=True)
+
+        # 클래시파이어 수정 부분
+        self.last_dim = last_dim
+        if last_dim != 1:
+            self.last_classifier = nn.Linear(1, last_dim)
+
         
     def forward(self, x: torch.Tensor):
         """
@@ -108,6 +134,9 @@ class _FactorizationMachineModel(nn.Module):
         """
         x = self.linear(x) + self.fm(self.embedding(x))
         # return torch.sigmoid(x.squeeze(1))
+        # 클래시파이어 수정 부분
+        if self.last_dim != 1:
+            x = self.last_classifier(x)
         return x.squeeze(1)
 
 class FieldAwareFactorizationMachine(nn.Module):
@@ -174,7 +203,7 @@ class MultiLayerPerceptron(nn.Module):
 
 class _NeuralCollaborativeFiltering(nn.Module):
 
-    def __init__(self, field_dims, user_field_idx, item_field_idx, embed_dim, mlp_dims, dropout):
+    def __init__(self, field_dims, user_field_idx, item_field_idx, embed_dim, mlp_dims, dropout, last_dim=1):
         super().__init__()
         self.user_field_idx = user_field_idx
         self.item_field_idx = item_field_idx
@@ -182,6 +211,11 @@ class _NeuralCollaborativeFiltering(nn.Module):
         self.embed_output_dim = len(field_dims) * embed_dim
         self.mlp = MultiLayerPerceptron(self.embed_output_dim, mlp_dims, dropout, output_layer=False)
         self.fc = torch.nn.Linear(mlp_dims[-1] + 2 * embed_dim, 1)
+
+        # 클래시파이어 수정 부분
+        self.last_dim = last_dim
+        if last_dim != 1:
+            self.last_classifier = nn.Linear(1, last_dim)
 
     def forward(self, x):
         """
@@ -196,8 +230,13 @@ class _NeuralCollaborativeFiltering(nn.Module):
         x = self.mlp(x.view(-1, self.embed_output_dim))
         x = torch.cat([gmf, x, context_x], dim=1)
 
-        x = self.fc(x).squeeze(1)
-        return x
+        # 클래시파이어 수정 부분        
+        x = self.fc(x)
+
+        if self.last_dim != 1:
+            x = self.last_classifier(x)
+
+        return x.squeeze(1)
 
 class _WideAndDeepModel(nn.Module):
 

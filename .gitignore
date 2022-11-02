@@ -1,4 +1,5 @@
 .DS_Store
+*.pyc
 */*/*.pyc
 */*.pyc
 */*/*/*.pyc
