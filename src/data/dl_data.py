@@ -212,9 +212,9 @@ def dl_data_loader(args, data, cf=False, range_str='09', last_valid=False, is_bo
             new_data['y_train'] = new_data['y_train'].astype(np.float64) / 10.0
             new_data['y_valid'] = new_data['y_valid'].astype(np.float64) / 10.0
         
-        if args.RR_MODEL in ('XGB', 'LGBM', 'CATB'):
-            new_data['train_dataloader'], new_data['valid_dataloader'], new_data['test_dataloader'] = \
-                (new_data['X_train'], new_data['y_train']), (new_data['X_valid'], new_data['y_valid']), (new_data['test'], None)
+        # if args.RR_MODEL in ('XGB', 'LGBM', 'CATB'):
+        #     new_data['train_dataloader'], new_data['valid_dataloader'], new_data['test_dataloader'] = \
+        #         (new_data['X_train'], new_data['y_train']), (new_data['X_valid'], new_data['y_valid']), (new_data['test'], None)
 
         train_dataset = TensorDataset(torch.LongTensor(new_data['X_train'].values), torch.FloatTensor(new_data['y_train'].values))
         valid_dataset = TensorDataset(torch.LongTensor(new_data['X_valid'].values), torch.FloatTensor(new_data['y_valid'].values))
@@ -222,15 +222,19 @@ def dl_data_loader(args, data, cf=False, range_str='09', last_valid=False, is_bo
 
     test_dataset = TensorDataset(torch.LongTensor(data['test'].values))
 
-    if cf:
-        train_dataloader = DataLoader(train_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-        valid_dataloader = DataLoader(valid_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-        test_dataloader = DataLoader(test_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=False, num_workers = 4)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    test_dataloader = DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False, num_workers = 4)
 
-    else:
-        train_dataloader = DataLoader(train_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-        valid_dataloader = DataLoader(valid_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
-        test_dataloader = DataLoader(test_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=False, num_workers = 4)
+    # if cf:
+    #     train_dataloader = DataLoader(train_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    #     valid_dataloader = DataLoader(valid_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    #     test_dataloader = DataLoader(test_dataset, batch_size=args.CF_BATCH_SIZE, shuffle=False, num_workers = 4)
+
+    # else:
+    #     train_dataloader = DataLoader(train_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    #     valid_dataloader = DataLoader(valid_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=args.DATA_SHUFFLE, num_workers = 4)
+    #     test_dataloader = DataLoader(test_dataset, batch_size=args.RR_BATCH_SIZE, shuffle=False, num_workers = 4)
 
     if is_boosting:
         new_data['train_dataloader'], new_data['valid_dataloader'], new_data['test_dataloader'] = \

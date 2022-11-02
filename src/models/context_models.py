@@ -38,10 +38,12 @@ class FactorizationMachineModel:
         self.embed_dim = args.FM_EMBED_DIM
         self.epochs = args.EPOCHS
         ## 리그레션 일 시 클래시파이어 일시 달라짐
-        if cf:
-            self.learning_rate = args.CF_LR
-        else:
-            self.learning_rate = args.RR_LR
+        # if cf:
+        #     self.learning_rate = args.CF_LR
+        # else:
+        #     self.learning_rate = args.RR_LR
+
+        self.learning_rate = args.LR
         self.weight_decay = args.WEIGHT_DECAY
         self.log_interval = 100
 
@@ -87,7 +89,7 @@ class FactorizationMachineModel:
         formatted_user_num = format(self.args.USER_NUM, '02')
         formatted_book_num = format(self.args.BOOK_NUM, '02')
         ppath = os.path.join(self.args.SAVE_PATH,
-            self.args.CF_MODEL, '+', self.args.RR_MODEL, ## 클래시파이어 수정 부분
+            self.args.MODEL, ## 클래시파이어 수정 부분
             f"u{formatted_user_num}_b{formatted_book_num}",
             f"fold{fold_num}",
             'checkpoint.pt')
