@@ -3,7 +3,8 @@ import numpy as np
 import tqdm
 import torch
 import torch.nn as nn
-from ._models import rmse, RMSELoss, FeaturesEmbedding, FactorizationMachine_v
+import torch.nn.functional as F
+from ._models import rmse, LabelSmoothingLoss, ExpectationLoss, CategoryLoss, CombinedLoss, RMSELoss, FeaturesEmbedding, FactorizationMachine_v
 from src.utils import EarlyStopping
 
 class CNN_1D(nn.Module):
@@ -31,7 +32,7 @@ class CNN_1D(nn.Module):
 
 
 class _DeepCoNN(nn.Module):
-    def __init__(self, field_dims, embed_dim, word_dim, out_dim, kernel_size, conv_1d_out_dim, latent_dim):
+    def __init__(self, field_dims, embed_dim, word_dim, out_dim, kernel_size, conv_1d_out_dim, latent_dim, classifier):
         super(_DeepCoNN, self).__init__()
         self.embedding = FeaturesEmbedding(field_dims, embed_dim)
         self.cnn_u = CNN_1D(
@@ -46,12 +47,25 @@ class _DeepCoNN(nn.Module):
                              kernel_size=kernel_size,
                              conv_1d_out_dim=conv_1d_out_dim,
                             )
+        self.cnn_title = CNN_1D(
+                             word_dim=word_dim,
+                             out_dim=out_dim,
+                             kernel_size=kernel_size,
+                             conv_1d_out_dim=conv_1d_out_dim,
+                            )
+        self.cnn_image = CNN_1D(
+                             word_dim=word_dim,
+                             out_dim=out_dim,
+                             kernel_size=kernel_size,
+                             conv_1d_out_dim=conv_1d_out_dim,
+                            )
         self.fm = FactorizationMachine_v(
-                                         input_dim=(conv_1d_out_dim * 2) + (embed_dim*3),
+                                         input_dim=(conv_1d_out_dim * 4) + (embed_dim*3),
                                          latent_dim=latent_dim,
+                                         classifier = classifier
                                          )
     def forward(self, x):
-        user_isbn_vector, user_text_vector, item_text_vector = x[0], x[1], x[2]
+        user_isbn_vector, user_text_vector, item_text_vector, item_title_vector, item_image_vector = x[0], x[1], x[2], x[3], x[4]
         user_isbn_feature = self.embedding(user_isbn_vector)
         context_feature = user_isbn_feature[:, 2:]
         user_isbn_feature = user_isbn_feature[:, :2]
@@ -59,11 +73,15 @@ class _DeepCoNN(nn.Module):
         # print(f"[USER ISBN FEATURE SHAPE]: {user_isbn_feature.shape}")
         user_text_feature = self.cnn_u(user_text_vector)
         item_text_feature = self.cnn_i(item_text_vector)
+        item_title_feature = self.cnn_title(item_title_vector)
+        item_image_feature = self.cnn_image(item_image_vector)
         feature_vector = torch.cat([
                                     user_isbn_feature.view(-1, user_isbn_feature.size(1) * user_isbn_feature.size(2)),
                                     context_feature,
                                     user_text_feature,
-                                    item_text_feature
+                                    item_text_feature,
+                                    item_title_feature,
+                                    item_image_feature
                                     ], dim=1)
         output = self.fm(feature_vector)
         return output.squeeze(1)
@@ -81,12 +99,16 @@ class DeepCoNN:
                                 args.DEEPCONN_OUT_DIM,
                                 args.DEEPCONN_KERNEL_SIZE,
                                 args.DEEPCONN_CONV_1D_OUT_DIM,
-                                args.DEEPCONN_LATENT_DIM
+                                args.DEEPCONN_LATENT_DIM,
+                                args.CLASSIFIER
                                 ).to(self.device)
         self.optimizer =  torch.optim.Adam(self.model.parameters(), lr=args.LR)
         self.train_data_loader = data['train_dataloader']
         self.valid_data_loader = data['valid_dataloader']
-        self.criterion = RMSELoss()
+        if self.args.CLASSIFIER:
+            self.criterion = CombinedLoss()#nn.CrossEntropyLoss()
+        else:
+            self.criterion = nn.SmoothL1Loss()#RMSELoss()
         self.epochs = args.EPOCHS
         self.model_name = 'text_model'
         self.log_interval = 100
@@ -102,12 +124,14 @@ class DeepCoNN:
             n = 0
             tk0 = tqdm.tqdm(self.train_data_loader, smoothing=0, mininterval=1.0)
             for i, data in enumerate(tk0):
-                if len(data)==3:
-                    fields, target = [data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
-                elif len(data)==4:
-                    fields, target = [data['user_isbn_vector'].to(self.device), data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
+                fields, target = [data['user_isbn_vector'].to(self.device), data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device),\
+                                    data['item_title_vector'].to(self.device), data['item_image_vector'].to(self.device)], data['label'].to(self.device)
                 y = self.model(fields)
-                loss = self.criterion(y, target.float())
+                if self.args.CLASSIFIER:
+                    y= F.softmax(y, dim = 1)
+                    loss = self.criterion(y, target.long())
+                else:
+                    loss = self.criterion(y, target.float())
                 self.model.zero_grad()
                 loss.backward()
                 self.optimizer.step()
@@ -143,11 +167,12 @@ class DeepCoNN:
         targets, predicts = list(), list()
         tk = tqdm.tqdm(self.valid_data_loader, smoothing=0, mininterval=1.0)
         for i, data in enumerate(tk):
-            if len(data)==3:
-                fields, target = [data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
-            elif len(data)==4:
-                fields, target = [data['user_isbn_vector'].to(self.device), data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
+            fields, target = [data['user_isbn_vector'].to(self.device), data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device),\
+                                    data['item_title_vector'].to(self.device), data['item_image_vector'].to(self.device)], data['label'].to(self.device)
             y = self.model(fields)
+            if self.args.CLASSIFIER:
+                y= F.softmax(y, dim = 1)
+                y = y.argmax(dim = 1)
             targets.extend(target.float().tolist())
             predicts.extend(y.tolist())
         return rmse(targets, predicts)
@@ -160,11 +185,12 @@ class DeepCoNN:
         targets, predicts = list(), list()
         with torch.no_grad():
             for data in test_data_loader:
-                if len(data)==3:
-                    fields, target = [data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
-                elif len(data)==4:
-                    fields, target = [data['user_isbn_vector'].to(self.device), data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device)], data['label'].to(self.device)
+                fields, target = [data['user_isbn_vector'].to(self.device), data['user_summary_merge_vector'].to(self.device), data['item_summary_vector'].to(self.device),\
+                                    data['item_title_vector'].to(self.device), data['item_image_vector'].to(self.device)], data['label'].to(self.device)
                 y = self.model(fields)
+                if self.args.CLASSIFIER:
+                    y= F.softmax(y, dim = 1)
+                    y = y.argmax(dim = 1)
                 targets.extend(target.tolist())
                 predicts.extend(y.tolist())
         return predicts

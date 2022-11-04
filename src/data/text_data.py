@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import WeightedRandomSampler
 from torch.autograd import Variable
 from transformers import BertModel, BertTokenizer
 
@@ -52,19 +53,18 @@ def year_of_publication_map(x: int) -> int:
         return 4
 
 
-# def text_to_vector(text, tokenizer, model, device):
-#     for sent in tokenize.sent_tokenize(text):
-#         text_ = "[CLS] " + sent + " [SEP]"
-#         tokenized = tokenizer.tokenize(text_)
-#         indexed = tokenizer.convert_tokens_to_ids(tokenized)
-#         segments_idx = [1] * len(tokenized)
-#         token_tensor = torch.tensor([indexed])
-#         sgments_tensor = torch.tensor([segments_idx])
-#         with torch.no_grad():
-#             outputs = model(token_tensor.to(device), sgments_tensor.to(device))
-#             encode_layers = outputs[0]
-#             sentence_embedding = torch.mean(encode_layers[0], dim=0)
-#     return sentence_embedding.cpu().detach().numpy()
+class StandardScaler:
+    def __init__(self):
+        self.train_mean = None
+        self.train_std = None
+
+    def build(self, train_data):
+        self.train_mean = train_data.mean()
+        self.train_std = train_data.std()
+
+    def normalize(self, df):
+        return (df - self.train_mean) / self.train_std
+
 
 def process_context_data(users, books, ratings1, ratings2):
     ratings = pd.concat([ratings1, ratings2]).reset_index(drop=True)
@@ -156,14 +156,39 @@ def process_text_data(df, user2idx, isbn2idx, device, train=False):
     df = pd.merge(df, books_text_df[['isbn', 'item_summary_vector']], on='isbn', how='left')
     del books_text_df
 
+    # book_title
+    if train == True:
+        item = np.load('/opt/ml/data/embedding/train/book_title_vector.npy', allow_pickle = True)
+    else:
+        item = np.load('/opt/ml/data/embedding/test/book_title_vector.npy', allow_pickle = True)
+    books_text_df = pd.DataFrame([item[0], item[1]]).T
+    books_text_df.columns = ['isbn', 'item_title_vector']
+    books_text_df['isbn'] = books_text_df['isbn'].map(isbn2idx)
+    del item
+    df = pd.merge(df, books_text_df[['isbn', 'item_title_vector']], on='isbn', how='left')
+    
+    #image
+    if train == True:
+        item = np.load('/opt/ml/data/embedding/train/image_embed.npy', allow_pickle = True)
+    else:
+        item = np.load('/opt/ml/data/embedding/test/image_embed.npy', allow_pickle = True)
+    books_text_df = pd.DataFrame([item[0], item[1]]).T
+    books_text_df.columns = ['isbn', 'item_image_vector']
+    books_text_df['isbn'] = books_text_df['isbn'].map(isbn2idx)
+    del item
+    df = pd.merge(df, books_text_df[['isbn', 'item_image_vector']], on='isbn', how='left')
+
+
     return df
 
 
 class Text_Dataset(Dataset):
-    def __init__(self, user_isbn_vector, user_summary_merge_vector, item_summary_vector, label):
+    def __init__(self, user_isbn_vector, user_summary_merge_vector, item_summary_vector, item_title_vector, item_image_vector, label):
         self.user_isbn_vector = user_isbn_vector
         self.user_summary_merge_vector = user_summary_merge_vector
         self.item_summary_vector = item_summary_vector
+        self.item_title_vector = item_title_vector
+        self.item_image_vector = item_image_vector
         self.label = label
 
     def __len__(self):
@@ -174,6 +199,8 @@ class Text_Dataset(Dataset):
                 'user_isbn_vector' : torch.tensor(self.user_isbn_vector[i], dtype=torch.long),
                 'user_summary_merge_vector' : torch.tensor(self.user_summary_merge_vector[i].reshape(-1, 1), dtype=torch.float32),
                 'item_summary_vector' : torch.tensor(self.item_summary_vector[i].reshape(-1, 1), dtype=torch.float32),
+                'item_title_vector' : torch.tensor(self.item_title_vector[i].reshape(-1, 1), dtype=torch.float32),
+                'item_image_vector': torch.tensor(self.item_image_vector[i].reshape(-1, 1), dtype=torch.float32),
                 'label' : torch.tensor(self.label[i], dtype=torch.float32),
                 }
 
@@ -217,8 +244,8 @@ def text_data_load(args):
 
     columns = ['user_id', 'isbn'] + columns
     field_dims = np.array([len(user2idx), len(isbn2idx)] + field_dims, dtype = np.int64)
-    text_train = text_train[columns + ['user_summary_merge_vector', 'item_summary_vector'] + ['rating']]
-    text_test = text_test[columns + ['user_summary_merge_vector', 'item_summary_vector'] + ['rating']]
+    text_train = text_train[columns + ['user_summary_merge_vector', 'item_summary_vector'] + ['item_title_vector', 'item_image_vector'] + ['rating']]
+    text_test = text_test[columns + ['user_summary_merge_vector', 'item_summary_vector'] + ['item_title_vector', 'item_image_vector'] + ['rating']]
 
     print(text_train.info(), '\n\n')
     print(text_test.info())
@@ -235,7 +262,7 @@ def text_data_load(args):
             'text_train':text_train,
             'text_test':text_test,
             'field_dims': field_dims,
-            'columns': columns
+            'columns': columns,
             }
 
     return data
@@ -253,31 +280,61 @@ def text_data_split(args, data):
     print("[SAMPLING]")
     print(data['X_train'].columns)
     print(data['X_train'].sample(5))
+    scaler = StandardScaler()
+    scaler.build(data['y_train'])
+    data['y_train'] = scaler.normalize(data['y_train'])
+    data['scaler'] = scaler
     return data
 
 
 def text_data_loader(args, data):
+    rating_values = data['y_train'].values
+    class_list = np.array([])
+    for item in range(len(rating_values)):
+        class_list = np.append(class_list, item)
+
+    class_list = class_list.astype(np.uint8)
+    unique, count = np.unique(class_list, return_counts = True)
+    class_weights = [sum(count) / c for c in count]
+    sampler_list = [class_weights[e] for e in class_list]
+    sampler_train = WeightedRandomSampler(sampler_list, len(sampler_list), replacement = True)
+
+    if args.CLASSIFIER:
+        diff = 1
+    else:
+        diff = 0
     train_dataset = Text_Dataset(
                                 data['X_train'][data['columns']].values,
                                 data['X_train']['user_summary_merge_vector'].values,
                                 data['X_train']['item_summary_vector'].values,
-                                data['y_train'].values
+                                data['X_train']['item_title_vector'].values,
+                                data['X_train']['item_image_vector'].values,
+                                data['y_train'].values - diff
                                 )
     valid_dataset = Text_Dataset(
                                 data['X_valid'][data['columns']].values,
                                 data['X_valid']['user_summary_merge_vector'].values,
                                 data['X_valid']['item_summary_vector'].values,
-                                data['y_valid'].values
+                                data['X_valid']['item_title_vector'].values,
+                                data['X_valid']['item_image_vector'].values,
+                                data['y_valid'].values - diff
                                 )
     test_dataset = Text_Dataset(
                                 data['text_test'][data['columns']].values,
                                 data['text_test']['user_summary_merge_vector'].values,
                                 data['text_test']['item_summary_vector'].values,
-                                data['text_test']['rating'].values
+                                data['text_test']['item_title_vector'].values,
+                                data['text_test']['item_image_vector'].values,
+                                data['text_test']['rating'].values - diff
                                 )
+    
 
+    #train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=True, num_workers = 4)
+    if args.WEIGHTED_SAMPLER:
+        train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, sampler = sampler_train, num_workers = 4)
+    else:
+        train_dataloader = DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle = args.DATA_SHUFFLE, num_workers = 4)
 
-    train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=args.BATCH_SIZE, shuffle=True, num_workers = 4)
     valid_dataloader = torch.utils.data.DataLoader(valid_dataset, batch_size=args.BATCH_SIZE, shuffle=True, num_workers = 4)
     test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=args.BATCH_SIZE, shuffle=False, num_workers = 4)
     data['train_dataloader'], data['valid_dataloader'], data['test_dataloader'] = train_dataloader, valid_dataloader, test_dataloader
