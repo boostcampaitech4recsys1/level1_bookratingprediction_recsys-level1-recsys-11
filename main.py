@@ -21,6 +21,19 @@ from src import XGBoostModel, LightGBMModel, CatBoostModel
 from sklearn.model_selection import StratifiedKFold
 
 
+class StandardScaler:
+    def __init__(self):
+        self.train_mean = None
+        self.train_std = None
+
+    def build(self, train_data):
+        self.train_mean = train_data.mean()
+        self.train_std = train_data.std()
+
+    def normalize(self, df):
+        return (df - self.train_mean) / self.train_std
+
+
 def main(args):
     seed_everything(args.SEED)
 
@@ -57,8 +70,10 @@ def main(args):
         elif args.MODEL=='DeepCoNN':
             data = text_data_split(args, data)
             data = text_data_loader(args, data)
+            scaler = data['scaler']
         else:
             pass
+
 
         ######################## Model
         print(f'--------------- INIT {args.MODEL} ---------------')
@@ -106,8 +121,15 @@ def main(args):
             predicts  = model.predict(data['test_dataloader'])
         elif args.MODEL=='DeepCoNN':
             predicts  = model.predict(data['test_dataloader'])
+
         else:
             pass
+        predicts = np.array(predicts)
+        if args.CLASSIFIER:
+            predicts = predicts + 1
+        if args.SCALER:
+            predicts = predicts * scaler.train_std + scaler.train_mean
+        predicts = predicts.tolist()
 
         ######################## SAVE PREDICT
         print(f'--------------- SAVE {args.MODEL} PREDICT ---------------')
@@ -167,7 +189,10 @@ def main(args):
             
             
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
-            predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            predicts = np.mean(kfold_predicts, axis = 0)
+            if args.CLASSIFIER:
+                predicts = predicts + 1
+            predicts = predicts.tolist()
             # 평균 내기 전에 복구할까 평균 내고 복구할까? 일단 평균 내고 복구한다.
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             print(f"[5-FOLD VALIDATION MEAN RMSE SCORE]: {rmse_array.mean()}")
@@ -189,6 +214,11 @@ def main(args):
                 data['y_train'] = data['train']['rating'].iloc[train_index]
                 data['X_valid']= data['train'].drop(['rating'], axis = 1).iloc[valid_index]
                 data['y_valid'] = data['train']['rating'].iloc[valid_index]
+                scaler = StandardScaler()
+                scaler.build(data['y_train'])
+                data['y_train'] = scaler.normalize(data['y_train'])
+                data['y_valid'] = scaler.normalize(data['y_valid'])
+                data['scaler'] = scaler
                 # print(data['X_train'].sample(5))
                 data = dl_data_loader(args, data)
 
@@ -205,10 +235,18 @@ def main(args):
                 rmse_array[idx] = rmse_score
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
-                kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
+                prediction = np.array(model.predict(data['test_dataloader']))
+                if args.SCALER:
+                    prediction = prediction * scaler.train_std + scaler.train_mean
+                kfold_predicts[idx] = prediction
             
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
-            predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            predicts = np.mean(kfold_predicts, axis = 0)
+
+            if args.CLASSIFIER:
+                predicts = predicts + 1
+
+            predicts = predicts.tolist()
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             print(f"[5-FOLD VALIDATION MEAN RMSE SCORE]: {rmse_array.mean()}")
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
@@ -229,6 +267,7 @@ def main(args):
                 data['X_valid']= data['img_train'][['user_id', 'isbn', 'img_vector']].iloc[valid_index]
                 data['y_valid'] = data['img_train']['rating'].iloc[valid_index]
                 data = image_data_loader(args, data)
+                scaler = data['scaler']
 
                 print(f'--------------- FOLD-{idx}, INIT {args.MODEL} ---------------')
                 model = CNN_FM(args, data)
@@ -237,10 +276,17 @@ def main(args):
                 model.train(fold_num = idx)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
-                kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
+                prediction = np.array(model.predict(data['test_dataloader']))
+                if args.SCALER:
+                    prediction = prediction * scaler.train_std + scaler.train_mean
+                kfold_predicts[idx] = prediction
             
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
-            predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            predicts = np.mean(kfold_predicts, axis = 0)
+            if args.CLASSIFIER:
+                predicts = predicts + 1
+            
+            predicts = predicts.tolist()
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
                 submission['rating'] = predicts
@@ -252,10 +298,15 @@ def main(args):
                                                 data['text_train'].drop(['rating'], axis=1),
                                                 data['text_train']['rating']
                                                 )):
-                data['X_train']= data['text_train'][data['columns'] + ['user_summary_merge_vector', 'item_summary_vector']].iloc[train_index]
+                data['X_train']= data['text_train'][data['columns'] + ['user_summary_merge_vector', 'item_summary_vector'] + ['item_title_vector', 'item_image_vector']].iloc[train_index]
                 data['y_train'] = data['text_train']['rating'].iloc[train_index]
-                data['X_valid']= data['text_train'][data['columns'] + ['user_summary_merge_vector', 'item_summary_vector']].iloc[valid_index]
+                data['X_valid']= data['text_train'][data['columns'] + ['user_summary_merge_vector', 'item_summary_vector']+ ['item_title_vector', 'item_image_vector']].iloc[valid_index]
                 data['y_valid'] = data['text_train']['rating'].iloc[valid_index]
+                scaler = StandardScaler()
+                scaler.build(data['y_train'])
+                data['y_train'] = scaler.normalize(data['y_train'])
+                data['y_valid'] = scaler.normalize(data['y_valid'])
+                data['scaler'] = scaler
                 data = text_data_loader(args, data)
 
                 print(f'--------------- FOLD-{idx}, INIT {args.MODEL} ---------------')
@@ -265,10 +316,16 @@ def main(args):
                 model.train(fold_num = idx)
                 
                 print(f'--------------- FOLD-{idx}, {args.MODEL} PREDICT ---------------')
-                kfold_predicts[idx] = np.array(model.predict(data['test_dataloader']))
+                prediction = np.array(model.predict(data['test_dataloader']))
+                if args.SCALER:
+                    prediction = prediction * scaler.train_std + scaler.train_mean
+                kfold_predicts[idx] = prediction
             
             print(f'--------------- FOLD-{idx}, SAVE {args.MODEL} PREDICT ---------------')
-            predicts = np.mean(kfold_predicts, axis = 0).tolist()
+            predicts = np.mean(kfold_predicts, axis = 0)
+            if args.CLASSIFIER:
+                predicts = predicts + 1
+            predicts = predicts.tolist()
             submission = pd.read_csv(args.DATA_PATH + 'ratings/sample_submission.csv')
             if args.MODEL in ('FM', 'FFM', 'NCF', 'WDN', 'DCN', 'CNN_FM', 'DeepCoNN', 'XGB', 'LGBM', 'CATB'):
                 submission['rating'] = predicts
@@ -317,6 +374,9 @@ if __name__ == "__main__":
     arg('--SEED', type=int, default=42, help='seed 값을 조정할 수 있습니다.')
     arg('--VALID', type = str, default = 'kfold', help = "kfold, random")
     arg('--N_SPLITS', type = int, default = 5)
+    arg('--WEIGHTED_SAMPLER', type = bool, default = False)
+    arg('--CLASSIFIER', type = bool, default = False)
+    arg('--SCALER', type = bool, default = False)
     
     ############### TRAINING OPTION
     arg('--BATCH_SIZE', type=int, default=64, help='Batch size를 조정할 수 있습니다.')
