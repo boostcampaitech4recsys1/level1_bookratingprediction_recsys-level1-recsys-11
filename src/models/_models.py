@@ -2,6 +2,7 @@ import numpy as np
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
@@ -49,6 +50,69 @@ class CrossEntropyLoss(torch.nn.Module):
         loss = criterion(x, y)
         return loss
 
+class LabelSmoothingLoss(nn.Module):
+    def __init__(self, classes, smoothing=0.1, dim=-1):
+        super(LabelSmoothingLoss, self).__init__()
+        self.confidence = 1.0 - smoothing
+        self.smoothing = smoothing
+        self.cls = classes
+        self.dim = dim
+
+    def forward(self, pred, target):
+        pred = pred.log_softmax(dim=self.dim)
+        with torch.no_grad():
+            # true_dist = pred.data.clone()
+            true_dist = torch.zeros_like(pred)
+            true_dist.fill_(self.smoothing / (self.cls - 1))
+            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+        return torch.mean(torch.sum(-true_dist * pred, dim=self.dim))
+
+
+class ExpectationLoss(nn.Module):
+    """
+    Expectation Loss definition
+    """
+
+    def __init__(self):
+        super(ExpectationLoss, self).__init__()
+
+        # self.device = torch.device('cuda:0' if torch.cuda.is_available() and cfg['use_gpu'] else 'cpu')
+        self.mae = nn.L1Loss()
+
+    def forward(self, pred, target):
+        cls = torch.from_numpy(np.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]], dtype=np.float).T).cuda()
+        # cls = torch.from_numpy(np.array([[1.0, 2.0, 3.0]], dtype=np.float).T).to(self.device)
+        return self.mae(torch.mm(pred, cls.float()).view(-1), target)
+
+class CategoryLoss(nn.Module):
+    def __init__(self):
+        super(CategoryLoss, self).__init__()
+        self.ce_loss = nn.CrossEntropyLoss()
+    def forward(self, pred, target):
+        # print(pred.shape, target.shape)
+        pred1 = torch.sum(pred[:, :5], dim  = -1, keepdim = True)
+        pred2 = torch.sum(pred[:, 6:9], dim  = -1, keepdim = True)
+        pred3 = torch.sum(pred[:, 9:], dim  = -1, keepdim = True)
+        pred = torch.cat([pred1, pred2, pred3], dim = 1)
+        target_onehot = F.one_hot(target)
+        target1 = torch.sum(target_onehot[:, :5], dim = -1, keepdim = True)
+        target2 = torch.sum(target_onehot[:, 6:9], dim = -1, keepdim = True)
+        target3 = torch.sum(target_onehot[:, 9:], dim = -1, keepdim = True)
+        target = torch.cat([target1, target2, target3], dim = 1)
+        # print(target.shape)
+        # print(target)
+        target = target.argmax(dim = 1)
+        return self.ce_loss(pred, target)
+        
+class CombinedLoss(nn.Module):
+    def __init__(self):
+        super(CombinedLoss, self).__init__()
+        self.clf_loss = LabelSmoothingLoss(classes = 10, smoothing = 0.1)
+        self.expectation_loss = ExpectationLoss()
+        self.category_loss = CategoryLoss()
+
+    def forward(self, pred, target):
+        return 2 * self.clf_loss(pred, target) + self.expectation_loss(pred, target) + self.category_loss(pred, target)
 
 class FactorizationMachine(nn.Module):
 
@@ -70,10 +134,13 @@ class FactorizationMachine(nn.Module):
 
 class FactorizationMachine_v(nn.Module):
 
-    def __init__(self, input_dim, latent_dim):
+    def __init__(self, input_dim, latent_dim, classifier):
         super().__init__()
         self.v = nn.Parameter(torch.rand(input_dim, latent_dim), requires_grad = True)
-        self.linear = nn.Linear(input_dim, 1, bias=True)
+        if classifier:
+            self.linear = nn.Linear(input_dim, 10, bias = False)
+        else:
+            self.linear = nn.Linear(input_dim, 1, bias=True)
 
     def forward(self, x):
         linear = self.linear(x)
