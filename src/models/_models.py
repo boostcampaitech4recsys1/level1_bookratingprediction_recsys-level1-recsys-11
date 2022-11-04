@@ -114,6 +114,19 @@ class CombinedLoss(nn.Module):
     def forward(self, pred, target):
         return 2 * self.clf_loss(pred, target) + self.expectation_loss(pred, target) + self.category_loss(pred, target)
 
+class PIECELoss(torch.nn.Module):
+    def __init__(self):
+        super(PIECELoss,self).__init__()
+        self.eps = 1e-6
+
+    def forward(self, x, y):
+        errorGreater = torch.greater((x-y), 0.3)
+        errorLess = torch.less_equal((x-y),-0.7)
+        tmp = (errorGreater|errorLess)
+        tmp = tmp.type(torch.FloatTensor).to(device='cuda')
+        loss = torch.mean(torch.square(tmp*2*(x-y)))
+        return loss
+
 class FactorizationMachine(nn.Module):
 
     def __init__(self, reduce_sum:bool=True):
