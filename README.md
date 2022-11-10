@@ -1,35 +1,23 @@
 # Book Rating Prediction
+
 <img src="https://img.shields.io/badge/Ubuntu-E95420?style=flat-square&logo=Ubuntu&logoColor=white"> <img src="https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=Python&logoColor=white"> <img src="https://img.shields.io/badge/Pytorch-EE4C2C?style=flat-square&logo=Pytorch&logoColor=white"> <img src="https://img.shields.io/badge/Numpy-013243?style=flat-square&logo=Numpy&logoColor=white">
 
-## Introduction
+7th place solution to Book rating prediction challenge in Boostcamp AI Tech 4
+
+[[PDF]](https://drive.google.com/file/d/1Ev7NdhV69SxYzvZEfHJWnhfH-Th4HSon/view?usp=sharing) 
+
+
 일반적으로 책 한 권은 원고지 기준 800~1000매 정도 되는 분량을 가지고 있습니다.
-
-뉴스기사나 짧은 러닝 타임의 동영상처럼 간결하게 즐길 수 있는 '숏폼 컨텐츠'는 소비자들이 부담 없이 쉽게 선택할 수 있지만, 
-책 한 권을 모두 읽기 위해서는 보다 긴 물리적인 시간이 필요합니다.
-
+뉴스기사나 짧은 러닝 타임의 동영상처럼 간결하게 즐길 수 있는 '숏폼 컨텐츠'는 소비자들이 부담 없이 쉽게 선택할 수 있지만, 책 한 권을 모두 읽기 위해서는 보다 긴 물리적인 시간이 필요합니다.
 또한 소비자 입장에서는 제목, 저자, 표지, 카테고리 등 한정된 정보로 각자가 콘텐츠를 유추하고 구매 유무를 결정해야 하기 때문에 상대적으로 더욱 신중을 가하게 됩니다.
-
-본 Challenge는 이러한 소비자들의 책 구매 결정에 대한 도움을 주기 위한 개인화된 상품 추천 모델을 설계하였습니다.
 
 책과 관련된 정보와 소비자의 정보, 그리고 소비자가 실제로 부여한 평점, 총 세 가지의 데이터셋(`users.csv`, `books.csv`, `train_ratings.csv`)을 
 활용하여 각 사용자가 주어진 책에 대해 어떤 평점을 부여할 지에 대해 예측해 보았습니다.
 
+Team members:
+**양성훈, 송영근, 유환승, 전병웅, 노태엽**
 
-## Directory
-
-📦level1_bookratingprediction_recsys-level1-recsys-11
-
- ┣ 📂experiments
- 
- ┣ 📂preprocess
- 
- ┣ 📂src
- 
- ┣ 📜ensemble.py
- 
- ┗ 📜main.py
-
-## Dataset
+## ✔️ Dataset
 
 학습 데이터는 306,795건의 평점 데이터(`train_rating.csv`)이며, 
 149,570건의 책 정보(`books.csv`) 및 
@@ -53,7 +41,7 @@
   - `test_ratings.csv`의 사용자가 주어진 책에 대해 매길 것이라고 예상하는 평점
 
 
-## Workflow
+## 🎯 Workflow
 <p align="center">
 <img src="./img/final_br_img.png" height = "240" alt="" align=center />
 <br><br>
@@ -62,7 +50,5 @@
 
 EDA & data pre-processing를 통해 books와 users 데이터셋 경우의 수 중에서 RMSE가 가장 낮은 데이터셋을 선택한 후, DL Model 중 NCF와 DeepCoNN을 활용하여 최종 예측을 산출해냈다. NCF에는 context information을, DeepCoNN 모델에는 context information, CLIP embedding 정보를 Concatenate 한 커스텀 모델을 제작해 학습을 진행하였다. 가장 성능이 잘 나오는 네 가지 모델을 선정한 뒤, 각 모델을 stratified 5-fold ensemble을 적용하였으며 최종적으로 weighted ensemble하여 평점을 예측하였다.
 
-## Get Started
+## 🚩 Get Started
 
-
-## References
