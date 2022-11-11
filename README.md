@@ -78,6 +78,7 @@ EDA & data pre-processing를 통해 books와 users 데이터셋 경우의 수 �
 
 4. Train & Infer the four workflow models with best eda data pair
 ```
+  python main.py —-USER_NUM 1 —-BOOK_NUM 5 —-MODEL NCF —-VALID kfold —-OPTIM sgd —-SCHEDULER steplr
   python main.py --USER_NUM 1 --BOOK_NUM 5 --MODEL NCF --LOSS sl1 --ZEROONE 1 --VALID kfold
   python main.py --USER_NUM 1 --BOOK_NUM 5 --MODEL NCF --VALID kfold
   python main.py --USER_NUM 1 --BOOK_NUM 5 --MODEL DeepCoNN --VALID kfold
