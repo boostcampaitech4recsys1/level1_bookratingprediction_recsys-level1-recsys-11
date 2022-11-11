@@ -386,7 +386,8 @@ if __name__ == "__main__":
     arg('--PATIENCE', type = int, default = 3, help = 'Early Stop patience')
     arg('--ZEROONE', type=bool, default=False, help = '0. ~ 1 스케일링 합니다.')
     arg('--ROUND', type=bool, default=False, help = '점수 반올림 진행합니다.')
-
+    arg('--OPTIM', type=str, default='adam', help='Optimizer를 adam과 sgd 중에서 골라주세요')
+    arg('--SCHEDULER', type=str, default=None, help='Learning Scheduler를 적용할 수 있습니다.(steplr)')
 
     ############### Loss Func
     arg('--LOSS', type=str, default='rmse', help='rmse, sl1, huber')
