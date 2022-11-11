@@ -4,13 +4,13 @@ import numpy as np
 # import matplotlib.pyplot as plt
 import os
 import re
+from tqdm import tqdm
 
 path = '/opt/ml/input/code/data/'
 books = pd.read_csv(path + 'books.csv')
 users = pd.read_csv(path + 'users.csv')
 ratings = pd.read_csv(path + 'train_ratings.csv')
 test_ratings = pd.read_csv(path + 'test_ratings.csv')
-
 
 def main():
     books.loc[books['language'] != 'en', 'summary'] = 'None'
@@ -93,7 +93,7 @@ def main():
     publisher_count_df= pd.DataFrame(list(publisher_dict.items()),columns = ['publisher1','count'])
     publisher_count_df = publisher_count_df.sort_values(by=['count'], ascending = False)
     modify_list = publisher_count_df[publisher_count_df['count']>5].publisher1.values
-    for publisher1 in modify_list:
+    for publisher1 in tqdm(modify_list):
         try:
             number = books[books['publisher1']==publisher1]['isbn'].apply(lambda x: x[:4]).value_counts().index[0]
             right_publisher = books[books['isbn'].apply(lambda x: x[:4])==number]['publisher1'].value_counts().index[0]
