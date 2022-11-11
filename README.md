@@ -52,3 +52,38 @@ EDA & data pre-processing를 통해 books와 users 데이터셋 경우의 수 �
 
 ## 🚩 Get Started
 
+1. Setup
+
+```
+  pip install -r requirements.txt
+  pip install ftfy regex tqdm
+  pip install git+https://github.com/openai/CLIP.git
+```
+
+2. Preprocess data
+
+`/opt/ml/data` 폴더에 `books.csv`, `users.csv`, `train_ratings.csv`, `test_ratings.csv` 파일 존재해야 함. 
+
+```
+  python preprocess/users.py
+  python preprocess/books.py
+  python preprocess/clip_embedding.py
+  python preprocess/feature2npy.py
+```
+
+3. Test EDA number of cases with NCF model
+```
+  bash experiments/eda_select_top_1.sh | grep rmse: > eda_select_log.txt
+```
+
+4. Train & Infer the four workflow models with best eda data pair
+```
+  python main.py --USER_NUM 1 --BOOK_NUM 5 --MODEL NCF --LOSS sl1 --ZEROONE 1 --VALID kfold
+  python main.py --USER_NUM 1 --BOOK_NUM 5 --MODEL NCF --VALID kfold
+  python main.py --USER_NUM 1 --BOOK_NUM 5 --MODEL DeepCoNN --VALID kfold
+```
+
+5. Ensemble the four inferences
+```
+  python ensenmble.py <filenames> <weights>
+```

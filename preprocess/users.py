@@ -49,9 +49,11 @@ def age1(users: pd.DataFrame, ratings, test_ratings):
         books = ratings[ratings['user_id']==user_id]['isbn'].values
         user_age[user_id] = get_age(books, ratings, users, isbn_age)
 
-    f = open('isbn_age.pkl', 'wb')
-    pickle.dump(isbn_age, f)
-    f.close()
+    # if 체크 안해주면 누가 실행하다 중간에 끌 때 dict가 온전치 않게 됨 
+    if not os.path.exists('isbn_age.pkl'):
+        f = open('isbn_age.pkl', 'wb')
+        pickle.dump(isbn_age, f)
+        f.close()
 
     # age 복사 후 새 컬럼에 복제하고, 결측채움
     users['age1'] = users['age'].copy()
@@ -116,10 +118,10 @@ def loc3(users: pd.DataFrame) -> pd.DataFrame:
 
 def main():
     # 전체 파일 준비
-    users = pd.read_csv('../../input/code/data/users.csv')
-    books = pd.read_csv('../../input/code/data/books.csv')
-    ratings = pd.read_csv('../../input/code/data/train_ratings.csv')
-    test_ratings = pd.read_csv('../../input/code/data/test_ratings.csv')
+    users = pd.read_csv('/opt/ml/input/code/data/users.csv')
+    books = pd.read_csv('/opt/ml/input/code/data/books.csv')
+    ratings = pd.read_csv('/opt/ml/input/code/data/train_ratings.csv')
+    test_ratings = pd.read_csv('/opt/ml/input/code/data/test_ratings.csv')
 
     # users location을 city, state, country로 나누는 기본 작업
     users['location'] = users['location'].str.replace(r'[^0-9a-zA-Z:,]', '') # 특수문자 제거
