@@ -56,8 +56,15 @@ class NeuralCollaborativeFiltering:
         self.dropout = args.NCF_DROPOUT
         self.model = _NeuralCollaborativeFiltering(self.field_dims, user_field_idx=self.user_field_idx, item_field_idx=self.item_field_idx,
                                                     embed_dim=self.embed_dim, mlp_dims=self.mlp_dims, dropout=self.dropout, last_dim=last_dim).to(self.device)
-        self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=self.learning_rate, amsgrad=True, weight_decay=self.weight_decay)
-
+        
+        if args.OPTIM == 'sgd':
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+        elif args.OPTIM == 'adam':       
+            self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=self.learning_rate, amsgrad=True, weight_decay=self.weight_decay)
+        
+        if args.SCHEDULER == 'steplr':
+            print('StepLR')
+            self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size = 2, gamma = 0.01)
 
     def train(self, fold_num):
       # model: type, optimizer: torch.optim, train_dataloader: DataLoader, criterion: torch.nn, device: str, log_interval: int=100
@@ -82,6 +89,10 @@ class NeuralCollaborativeFiltering:
                     tk0.set_postfix(loss=total_loss / self.log_interval)
                     total_loss = 0
 
+            if self.args.SCHEDULER == 'steplr':
+                print('StepLR')
+                self.scheduler.step()
+            
             rmse_score = self.predict_train()
             early_stopping(rmse_score, self.model)
 
