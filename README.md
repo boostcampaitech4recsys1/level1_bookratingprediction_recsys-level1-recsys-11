@@ -43,7 +43,7 @@ Team members:
 
 ## 🎯 Workflow
 <p align="center">
-<img src="./img/final_br_img.png" height = "240" alt="" align=center />
+<img src="./img/final_br_img.png" height = "360" alt="" align=center />
 <br><br>
 
 본 Challenge는 크게 EDA & data pre-processing 과정과 book rating prediction 과정 두 개로 나뉜다. 특히 EDA를 우선으로 진행하여, 모델 학습에 적용할 수 있는 경우의 수를 모두 고려해 최적의 전처리 데이터를 확보하는 것을 1차 목표로 두었으며 이를 바탕으로 최종적인 book rating prediction task 수행에서 높은 성능을 낼 수 있도록 하였다. 
